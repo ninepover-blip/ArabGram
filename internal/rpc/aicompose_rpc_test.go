@@ -1,0 +1,227 @@
+package rpc
+
+import (
+	"context"
+	"testing"
+
+	"github.com/iamxvbaba/td/clock"
+	"github.com/iamxvbaba/td/tg"
+	"github.com/iamxvbaba/td/tgerr"
+	"go.uber.org/zap/zaptest"
+
+	aiapp "telesrv/internal/app/ai"
+	"telesrv/internal/domain"
+	"telesrv/internal/store/memory"
+)
+
+func newAIComposeTestRouter(t *testing.T) *Router {
+	t.Helper()
+	st := memory.NewAIComposeStore()
+	return New(Config{}, Deps{
+		AICompose:      aiapp.NewService(st),
+		DeliveryOutbox: st.DeliveryOutbox(),
+	}, zaptest.NewLogger(t), clock.System)
+}
+
+func TestAIComposeGetTonesReturnsDefaultsAndNotModified(t *testing.T) {
+	r := newAIComposeTestRouter(t)
+	ctx := WithUserID(context.Background(), 1001)
+
+	got, err := r.onAicomposeGetTones(ctx, 0)
+	if err != nil {
+		t.Fatalf("getTones: %v", err)
+	}
+	tones, ok := got.(*tg.AicomposeTones)
+	if !ok {
+		t.Fatalf("getTones = %T, want *tg.AicomposeTones", got)
+	}
+	if tones.Hash == 0 || len(tones.Tones) == 0 {
+		t.Fatalf("getTones hash/tones = %d/%d, want non-empty", tones.Hash, len(tones.Tones))
+	}
+	want := []struct {
+		slug    string
+		emojiID int64
+	}{
+		{"formal", 4963195715414131468},
+		{"short", 5089558399201313570},
+		{"tribal", 4906965037207257780},
+		{"corp", 5103015433682813448},
+		{"zen", 5129871924314243582},
+		{"biblical", 5006296094481580688},
+		{"viking", 5102866720440189629},
+	}
+	if len(tones.Tones) < len(want) {
+		t.Fatalf("getTones defaults = %d, want at least %d", len(tones.Tones), len(want))
+	}
+	for i, expected := range want {
+		tone, ok := tones.Tones[i].(*tg.AiComposeToneDefault)
+		if !ok {
+			t.Fatalf("getTones tones[%d] = %T, want *tg.AiComposeToneDefault", i, tones.Tones[i])
+		}
+		if tone.Tone != expected.slug {
+			t.Fatalf("getTones tones[%d].Tone = %q, want %q", i, tone.Tone, expected.slug)
+		}
+		if tone.EmojiID != expected.emojiID {
+			t.Fatalf("getTones tones[%d].EmojiID = %d, want %d", i, tone.EmojiID, expected.emojiID)
+		}
+	}
+	again, err := r.onAicomposeGetTones(ctx, tones.Hash)
+	if err != nil {
+		t.Fatalf("getTones(hash): %v", err)
+	}
+	if _, ok := again.(*tg.AicomposeTonesNotModified); !ok {
+		t.Fatalf("getTones(hash) = %T, want tonesNotModified", again)
+	}
+}
+
+func TestMessagesComposeMessageWithAIProofread(t *testing.T) {
+	r := newAIComposeTestRouter(t)
+	ctx := WithUserID(context.Background(), 1001)
+
+	got, err := r.onMessagesComposeMessageWithAI(ctx, &tg.MessagesComposeMessageWithAIRequest{
+		Proofread: true,
+		Text:      tg.TextWithEntities{Text: "hello   world"},
+	})
+	if err != nil {
+		t.Fatalf("composeMessageWithAI: %v", err)
+	}
+	if got.ResultText.Text != "hello world." {
+		t.Fatalf("compose result = %q, want local polished text", got.ResultText.Text)
+	}
+	diff, ok := got.GetDiffText()
+	if !ok {
+		t.Fatal("DiffText = nil, want proofread diff")
+	}
+	if len(diff.Entities) != 1 {
+		t.Fatalf("DiffText entities = %d, want 1", len(diff.Entities))
+	}
+	replace, ok := diff.Entities[0].(*tg.MessageEntityDiffReplace)
+	if !ok {
+		t.Fatalf("DiffText entity = %T, want *tg.MessageEntityDiffReplace", diff.Entities[0])
+	}
+	if replace.OldText != "hello   world" || replace.Offset != 0 || replace.Length != len([]rune(got.ResultText.Text)) {
+		t.Fatalf("DiffText replace = %#v", replace)
+	}
+}
+
+func TestMessagesComposeMessageWithAIEmptyDefaultToneIsOptional(t *testing.T) {
+	r := newAIComposeTestRouter(t)
+	ctx := WithUserID(context.Background(), 1001)
+
+	req := &tg.MessagesComposeMessageWithAIRequest{
+		Text: tg.TextWithEntities{Text: "hello world"},
+	}
+	req.SetTranslateToLang("en")
+	req.SetTone(&tg.InputAiComposeToneDefault{})
+	got, err := r.onMessagesComposeMessageWithAI(ctx, req)
+	if err != nil {
+		t.Fatalf("composeMessageWithAI empty default tone: %v", err)
+	}
+	if got.ResultText.Text == "" {
+		t.Fatal("compose result is empty")
+	}
+
+	if _, err := r.onAicomposeGetTone(ctx, &tg.InputAiComposeToneDefault{}); !tgerr.Is(err, "TONE_NOT_FOUND") {
+		t.Fatalf("getTone empty default err = %v, want TONE_NOT_FOUND", err)
+	}
+}
+
+func TestAIComposeCustomToneCRUD(t *testing.T) {
+	r := newAIComposeTestRouter(t)
+	ctx := WithUserID(context.Background(), 1001)
+
+	createdRaw, err := r.onAicomposeCreateTone(ctx, &tg.AicomposeCreateToneRequest{
+		DisplayAuthor: true,
+		Title:         "Sharp",
+		Prompt:        "Make it crisp.",
+	})
+	if err != nil {
+		t.Fatalf("createTone: %v", err)
+	}
+	created, ok := createdRaw.(*tg.AiComposeTone)
+	if !ok {
+		t.Fatalf("createTone = %T, want *tg.AiComposeTone", createdRaw)
+	}
+	if created.ID == 0 || created.AccessHash == 0 || created.Slug == "" || !created.GetCreator() {
+		t.Fatalf("created tone = %#v", created)
+	}
+	update := &tg.AicomposeUpdateToneRequest{Tone: &tg.InputAiComposeToneID{ID: created.ID, AccessHash: created.AccessHash}}
+	update.SetTitle("Brief")
+	updatedRaw, err := r.onAicomposeUpdateTone(ctx, update)
+	if err != nil {
+		t.Fatalf("updateTone: %v", err)
+	}
+	updated := updatedRaw.(*tg.AiComposeTone)
+	if updated.Title != "Brief" {
+		t.Fatalf("updated title = %q, want Brief", updated.Title)
+	}
+	got, err := r.onAicomposeGetTone(ctx, &tg.InputAiComposeToneSlug{Slug: created.Slug})
+	if err != nil {
+		t.Fatalf("getTone: %v", err)
+	}
+	one := got.(*tg.AicomposeTones)
+	if len(one.Tones) != 1 {
+		t.Fatalf("getTone tones = %d, want 1", len(one.Tones))
+	}
+	if ok, err := r.onAicomposeDeleteTone(ctx, &tg.InputAiComposeToneID{ID: created.ID, AccessHash: created.AccessHash}); err != nil || !ok {
+		t.Fatalf("deleteTone = %v/%v, want true/nil", ok, err)
+	}
+	if _, err := r.onAicomposeGetTone(ctx, &tg.InputAiComposeToneSlug{Slug: created.Slug}); !tgerr.Is(err, "TONE_NOT_FOUND") {
+		t.Fatalf("getTone after delete err = %v, want TONE_NOT_FOUND", err)
+	}
+}
+
+func TestAIComposeToneLimitUsesClientError(t *testing.T) {
+	r := newAIComposeTestRouter(t)
+	ctx := WithUserID(context.Background(), 1001)
+
+	for i := 0; i < domain.AIComposeToneSavedLimitDefault; i++ {
+		if _, err := r.onAicomposeCreateTone(ctx, &tg.AicomposeCreateToneRequest{
+			Title:  "Tone",
+			Prompt: "Make it crisp.",
+		}); err != nil {
+			t.Fatalf("createTone %d: %v", i, err)
+		}
+	}
+	_, err := r.onAicomposeCreateTone(ctx, &tg.AicomposeCreateToneRequest{
+		Title:  "Extra",
+		Prompt: "Make it crisp.",
+	})
+	if !tgerr.Is(err, "TONES_SAVED_TOO_MANY") {
+		t.Fatalf("createTone over limit err = %v, want TONES_SAVED_TOO_MANY", err)
+	}
+}
+
+func TestAIComposeToneMutationPushesRefreshUpdate(t *testing.T) {
+	st := memory.NewAIComposeStore()
+	r := New(Config{}, Deps{
+		AICompose:      aiapp.NewService(st),
+		DeliveryOutbox: st.DeliveryOutbox(),
+	}, zaptest.NewLogger(t), clock.System)
+	ctx := WithSessionID(WithAuthKeyID(WithUserID(context.Background(), 1001), [8]byte{1}), 77)
+
+	if _, err := r.onAicomposeCreateTone(ctx, &tg.AicomposeCreateToneRequest{
+		Title:  "Sharp",
+		Prompt: "Make it crisp.",
+	}); err != nil {
+		t.Fatalf("createTone: %v", err)
+	}
+	items := st.DeliveryOutbox().Snapshot()
+	if len(items) != 1 {
+		t.Fatalf("outbox items = %d, want 1", len(items))
+	}
+	got, err := decodeDeliveryUpdate(items[0].Payload)
+	if err != nil {
+		t.Fatalf("decode delivery update: %v", err)
+	}
+	short, ok := got.(*tg.UpdateShort)
+	if !ok {
+		t.Fatalf("pushed update = %T, want *tg.UpdateShort", got)
+	}
+	if _, ok := short.Update.(*tg.UpdateAiComposeTones); !ok {
+		t.Fatalf("pushed short update = %T, want *tg.UpdateAiComposeTones", short.Update)
+	}
+	if items[0].ExcludeSessionID != 77 || items[0].ExcludeAuthKeyID != ([8]byte{1}) {
+		t.Fatalf("delivery exclusion = %x/%d, want auth key 01/session 77", items[0].ExcludeAuthKeyID, items[0].ExcludeSessionID)
+	}
+}

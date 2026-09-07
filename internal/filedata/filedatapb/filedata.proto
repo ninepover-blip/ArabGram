@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package telesrv.filedata.v1;
+
+option go_package = "telesrv/internal/filedata/filedatapb;filedatapb";
+
+service FileDataService {
+  rpc GetInfo(FileDataInfoRequest) returns (FileDataInfoResponse);
+
+  rpc SaveFilePart(SaveFilePartRequest) returns (SaveFilePartResponse);
+  rpc GetFile(GetFileRequest) returns (GetFileResponse);
+  rpc GetFileHashes(GetFileHashesRequest) returns (GetFileHashesResponse);
+  rpc MaterializeUploadBlob(MaterializeUploadBlobRequest) returns (MaterializeUploadBlobResponse);
+
+  rpc PutBlob(stream PutBlobChunk) returns (BlobObjectResponse);
+  rpc GetBlobRange(GetBlobRangeRequest) returns (GetBlobRangeResponse);
+  rpc PutUploadPart(PutUploadPartRequest) returns (UploadPartObjectResponse);
+  rpc GetUploadPart(GetUploadPartRequest) returns (GetUploadPartResponse);
+  rpc DeleteUploadPart(DeleteUploadPartRequest) returns (ErrorResponse);
+  rpc DeleteExpiredUploadParts(DeleteExpiredUploadPartsRequest) returns (DeleteExpiredUploadPartsResponse);
+}
+
+enum ErrorKind {
+  ERROR_KIND_NONE = 0;
+  ERROR_KIND_FILE_PART_INVALID = 1;
+  ERROR_KIND_FILE_PARTS_INVALID = 2;
+  ERROR_KIND_FILE_PART_TOO_BIG = 3;
+  ERROR_KIND_UPLOAD_QUOTA_EXCEEDED = 4;
+  ERROR_KIND_STORAGE_FULL = 5;
+  ERROR_KIND_PHOTO_INVALID = 6;
+  ERROR_KIND_DOCUMENT_INVALID = 7;
+}
+
+message FileDataInfoRequest {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+}
+
+message FileDataInfoResponse {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+  string implementation = 4;
+  string instance_id = 5;
+  string backend = 6;
+  string error = 7;
+}
+
+message SaveFilePartRequest {
+  int64 owner_user_id = 1;
+  int64 file_id = 2;
+  int32 file_part = 3;
+  int32 file_total_parts = 4;
+  bool big = 5;
+  bytes data = 6;
+}
+
+message SaveFilePartResponse {
+  bool saved = 1;
+  string error = 2;
+  ErrorKind error_kind = 3;
+}
+
+message GetFileRequest {
+  string location_key = 1;
+  int64 offset = 2;
+  int32 limit = 3;
+}
+
+message GetFileResponse {
+  bool found = 1;
+  bytes data = 2;
+  string mime_type = 3;
+  int64 total = 4;
+  string error = 5;
+  ErrorKind error_kind = 6;
+  string immutable_backend = 7;
+  string immutable_object_key = 8;
+  int64 immutable_offset = 9;
+  int32 immutable_length = 10;
+  bytes immutable_range_sha256 = 11;
+}
+
+message GetFileHashesRequest {
+  string location_key = 1;
+  int64 offset = 2;
+}
+
+message FileHash {
+  int64 offset = 1;
+  int32 limit = 2;
+  bytes hash = 3;
+}
+
+message GetFileHashesResponse {
+  bool found = 1;
+  repeated FileHash hashes = 2;
+  string error = 3;
+  ErrorKind error_kind = 4;
+}
+
+message MaterializeUploadBlobRequest {
+  int64 owner_user_id = 1;
+  int64 file_id = 2;
+  int32 expected_parts = 3;
+}
+
+message MaterializeUploadBlobResponse {
+  string object_key = 1;
+  int64 size = 2;
+  bytes sha256 = 3;
+  string error = 4;
+  ErrorKind error_kind = 5;
+}
+
+message PutBlobChunk {
+  bytes data = 1;
+}
+
+message BlobObjectResponse {
+  string object_key = 1;
+  int64 size = 2;
+  bytes sha256 = 3;
+  string error = 4;
+  ErrorKind error_kind = 5;
+}
+
+message GetBlobRangeRequest {
+  string object_key = 1;
+  int64 offset = 2;
+  int64 limit = 3;
+}
+
+message GetBlobRangeResponse {
+  bytes data = 1;
+  int64 total = 2;
+  string error = 3;
+  ErrorKind error_kind = 4;
+}
+
+message PutUploadPartRequest {
+  int64 owner_user_id = 1;
+  int64 file_id = 2;
+  int32 file_part = 3;
+  bytes data = 4;
+}
+
+message UploadPartObjectResponse {
+  string backend = 1;
+  string object_key = 2;
+  int64 size = 3;
+  bytes sha256 = 4;
+  string error = 5;
+  ErrorKind error_kind = 6;
+}
+
+message GetUploadPartRequest {
+  string object_key = 1;
+}
+
+message GetUploadPartResponse {
+  bytes data = 1;
+  string error = 2;
+  ErrorKind error_kind = 3;
+}
+
+message DeleteUploadPartRequest {
+  string object_key = 1;
+}
+
+message DeleteExpiredUploadPartsRequest {
+  int64 before_unix_nano = 1;
+  int32 limit = 2;
+}
+
+message DeleteExpiredUploadPartsResponse {
+  int64 deleted = 1;
+  string error = 2;
+  ErrorKind error_kind = 3;
+}
+
+message ErrorResponse {
+  string error = 1;
+  ErrorKind error_kind = 2;
+}

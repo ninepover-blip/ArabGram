@@ -1,0 +1,692 @@
+package rpc
+
+import (
+	"context"
+	"errors"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/iamxvbaba/td/clock"
+	"github.com/iamxvbaba/td/tg"
+	"github.com/iamxvbaba/td/tgerr"
+	"go.uber.org/zap/zaptest"
+
+	appbots "telesrv/internal/app/bots"
+	appchannels "telesrv/internal/app/channels"
+	appmessages "telesrv/internal/app/messages"
+	appusers "telesrv/internal/app/users"
+	"telesrv/internal/domain"
+	"telesrv/internal/store/memory"
+	"telesrv/internal/store/storetest"
+)
+
+func TestBotAPICallbackQueryPrivatePollingAndAnswer(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	data := []byte("private-confirm")
+	markup := &domain.MessageReplyMarkup{Type: domain.MessageReplyMarkupInline, Inline: [][]domain.MarkupButton{{{
+		Type: domain.MarkupButtonCallback, Text: "Confirm", Data: data,
+	}}}}
+	sent, err := fixture.messages.SendPrivateText(fixture.ctx, fixture.bot.ID, domain.SendPrivateTextRequest{
+		SenderUserID: fixture.bot.ID, RecipientUserID: fixture.owner.ID,
+		RandomID: 90001, Message: "tap private", Date: 200, ReplyMarkup: markup,
+	})
+	if err != nil {
+		t.Fatalf("SendPrivateText: %v", err)
+	}
+	if _, err := fixture.router.resolveBotCallbackQuery(
+		fixture.ctx,
+		fixture.owner.ID,
+		domain.Peer{Type: domain.PeerTypeUser, ID: fixture.bot.ID},
+		sent.RecipientMessage.ID,
+		[]byte("forged-callback-data"),
+	); !tgerr.Is(err, "DATA_INVALID") {
+		t.Fatalf("forged callback data err = %v, want DATA_INVALID", err)
+	}
+	ctx, cancel := context.WithTimeout(WithUserID(context.Background(), fixture.owner.ID), 5*time.Second)
+	defer cancel()
+	answerCh := make(chan struct {
+		answer *tg.MessagesBotCallbackAnswer
+		err    error
+	}, 1)
+	go func() {
+		req := &tg.MessagesGetBotCallbackAnswerRequest{
+			Peer:  &tg.InputPeerUser{UserID: fixture.bot.ID, AccessHash: fixture.bot.AccessHash},
+			MsgID: sent.RecipientMessage.ID,
+		}
+		req.SetData(data)
+		answer, err := fixture.router.onMessagesGetBotCallbackAnswer(ctx, req)
+		answerCh <- struct {
+			answer *tg.MessagesBotCallbackAnswer
+			err    error
+		}{answer: answer, err: err}
+	}()
+
+	event := waitForBotAPICallbackEvent(t, ctx, fixture.router, fixture.bot.ID)
+	if event.Message.ID != sent.SenderMessage.ID || event.Message.OwnerUserID != fixture.bot.ID || !event.Message.Out {
+		t.Fatalf("callback message = %+v, want bot-side box id %d", event.Message, sent.SenderMessage.ID)
+	}
+	callback := event.BotCallbackQuery
+	if callback == nil || callback.UserID != fixture.owner.ID || callback.Peer != (domain.Peer{Type: domain.PeerTypeUser, ID: fixture.owner.ID}) ||
+		callback.MessageID != sent.SenderMessage.ID || string(callback.Data) != string(data) {
+		t.Fatalf("callback = %+v", callback)
+	}
+	if ok, err := fixture.router.BotAPIAnswerCallbackQuery(ctx, fixture.bot.ID, strconv.FormatInt(callback.ID, 10), "accepted", "", false, 0); err != nil || !ok {
+		t.Fatalf("BotAPIAnswerCallbackQuery = %v, %v", ok, err)
+	}
+	select {
+	case result := <-answerCh:
+		if result.err != nil || result.answer == nil || result.answer.Message != "accepted" {
+			t.Fatalf("callback answer = %+v err=%v", result.answer, result.err)
+		}
+	case <-ctx.Done():
+		t.Fatal("callback answer did not unblock requester")
+	}
+}
+
+func TestBotAPICallbackQueryRejectsExpiredOrUnknownAnswer(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	if ok, err := fixture.router.BotAPIAnswerCallbackQuery(fixture.ctx, fixture.bot.ID, "999", "late", "", false, 0); err == nil || ok || !strings.Contains(err.Error(), "QUERY_ID_INVALID") {
+		t.Fatalf("unknown answer = ok=%v err=%v", ok, err)
+	}
+	item := domain.BotAPIUpdate{
+		ID: 1, BotUserID: fixture.bot.ID, Kind: domain.BotAPIUpdateCallbackQuery,
+		Peer: domain.Peer{Type: domain.PeerTypeUser, ID: fixture.owner.ID}, MessageID: 1,
+		Date: 100,
+		Callback: &domain.BotCallbackQuery{
+			ID: 2, BotUserID: fixture.bot.ID, UserID: fixture.owner.ID,
+			Peer: domain.Peer{Type: domain.PeerTypeUser, ID: fixture.owner.ID}, MessageID: 1, ChatInstance: 3,
+		},
+	}
+	if _, ok := botAPIQueuedUpdateKind(fixture.bot.ID, item, time.Unix(100, 0).Add(botCallbackTimeout)); ok {
+		t.Fatal("callback at answer deadline remained deliverable")
+	}
+}
+
+func TestBotAPIInlineCallbackDoesNotHydrateNonexistentChatMessage(t *testing.T) {
+	now := time.Unix(200, 0)
+	inline := &domain.BotInlineMessageID{DCID: 2, OwnerID: 2001, ID: 17, AccessHash: 9988}
+	item := domain.BotAPIUpdate{
+		ID: 55, BotUserID: 1001, Kind: domain.BotAPIUpdateCallbackQuery, Date: int(now.Unix()),
+		Callback: &domain.BotCallbackQuery{
+			ID: 77, BotUserID: 1001, UserID: 2001, ChatInstance: 99,
+			Data: []byte("inline"), InlineMessage: inline,
+		},
+	}
+	event, ok := botAPIQueuedUpdateEventFromMessages(1001, item, nil, nil, now)
+	if !ok || event.Type != domain.UpdateEventBotCallbackQuery || event.Message.ID != 0 || event.Peer != (domain.Peer{}) ||
+		event.BotCallbackQuery == nil || event.BotCallbackQuery.InlineMessage == nil || *event.BotCallbackQuery.InlineMessage != *inline {
+		t.Fatalf("inline callback event=%#v ok=%v", event, ok)
+	}
+}
+
+func TestBotAPIUpdatesRequiresDurableQueue(t *testing.T) {
+	router := New(Config{}, Deps{}, zaptest.NewLogger(t), clock.System)
+	if _, err := router.BotAPIUpdates(context.Background(), 1001, 0); !errors.Is(err, errBotAPIUpdateStoreRequired) {
+		t.Fatalf("BotAPIUpdates err = %v, want queue required", err)
+	}
+	if ok, err := router.AcquireBotAPIPollLease(context.Background(), 1001, "poller", time.Second); ok || !errors.Is(err, errBotAPIUpdateStoreRequired) {
+		t.Fatalf("AcquireBotAPIPollLease = ok %v err %v, want queue required", ok, err)
+	}
+}
+
+func TestBotAPICallbackQuerySupergroupPollingAndAnswer(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	data := []byte("group-confirm")
+	markup := &domain.MessageReplyMarkup{Type: domain.MessageReplyMarkupInline, Inline: [][]domain.MarkupButton{{{
+		Type: domain.MarkupButtonCallback, Text: "Confirm", Data: data,
+	}}}}
+	sent, err := fixture.channels.SendMessage(fixture.ctx, fixture.bot.ID, domain.SendChannelMessageRequest{
+		UserID: fixture.bot.ID, ChannelID: fixture.channel.ID, RandomID: 90002,
+		Message: "tap group", Date: 201, ReplyMarkup: markup, SkipRecipientLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("SendMessage: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(WithUserID(context.Background(), fixture.owner.ID), 5*time.Second)
+	defer cancel()
+	answerCh := make(chan error, 1)
+	go func() {
+		req := &tg.MessagesGetBotCallbackAnswerRequest{
+			Peer:  &tg.InputPeerChannel{ChannelID: fixture.channel.ID, AccessHash: fixture.channel.AccessHash},
+			MsgID: sent.Message.ID,
+		}
+		req.SetData(data)
+		_, err := fixture.router.onMessagesGetBotCallbackAnswer(ctx, req)
+		answerCh <- err
+	}()
+
+	event := waitForBotAPICallbackEvent(t, ctx, fixture.router, fixture.bot.ID)
+	callback := event.BotCallbackQuery
+	if callback == nil || callback.Peer != (domain.Peer{Type: domain.PeerTypeChannel, ID: fixture.channel.ID}) ||
+		callback.MessageID != sent.Message.ID || event.Message.ID != sent.Message.ID || !event.Message.Out {
+		t.Fatalf("group callback event = %+v", event)
+	}
+	if _, err := fixture.router.BotAPIAnswerCallbackQuery(ctx, fixture.bot.ID, strconv.FormatInt(callback.ID, 10), "", "", false, 0); err != nil {
+		t.Fatalf("BotAPIAnswerCallbackQuery: %v", err)
+	}
+	select {
+	case err := <-answerCh:
+		if err != nil {
+			t.Fatalf("group callback answer: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("group callback answer did not unblock requester")
+	}
+}
+
+func waitForBotAPICallbackEvent(t *testing.T, ctx context.Context, router *Router, botID int64) domain.UpdateEvent {
+	t.Helper()
+	for {
+		events, err := router.BotAPIUpdates(ctx, botID, 0)
+		if err != nil {
+			t.Fatalf("BotAPIUpdates: %v", err)
+		}
+		for _, event := range events {
+			if event.Type == domain.UpdateEventBotCallbackQuery {
+				return event
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("callback query did not reach Bot API queue")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
+func TestBotAPISendMessageToSupergroupChatID(t *testing.T) {
+	ctx := context.Background()
+	userStore := memory.NewUserStore()
+	owner, err := userStore.Create(ctx, domain.User{AccessHash: 1001, Phone: "15550008001", FirstName: "Owner"})
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	bot, err := userStore.Create(ctx, domain.User{AccessHash: 2001, Phone: "15550008002", FirstName: "TetrisBot", Username: "TetrisBot", Bot: true})
+	if err != nil {
+		t.Fatalf("create bot: %v", err)
+	}
+
+	channelStore := memory.NewChannelStore()
+	channelService := appchannels.NewService(channelStore)
+	created, err := channelService.CreateMegagroupFromCreateChat(ctx, owner.ID, domain.CreateChannelRequest{
+		Title:         "Group1",
+		MemberUserIDs: []int64{bot.ID},
+		Date:          10,
+	})
+	if err != nil {
+		t.Fatalf("create megagroup: %v", err)
+	}
+	sessions := &captureSessions{
+		channelMembers: map[int64][]int64{created.Channel.ID: {owner.ID}},
+	}
+	r := New(Config{}, Deps{
+		Users:    appusers.NewService(userStore),
+		Channels: channelService,
+		Sessions: sessions,
+	}, zaptest.NewLogger(t), clock.System)
+	chatID := -botAPIChannelChatIDBase - created.Channel.ID
+	replyKeyboard := &domain.MessageReplyMarkup{
+		Type:     domain.MessageReplyMarkupKeyboard,
+		Keyboard: [][]domain.MarkupButton{{{Type: domain.MarkupButtonText, Text: "Help"}}},
+		Resize:   true,
+	}
+	msg, err := r.BotAPISendMessage(ctx, bot.ID, chatID, "hello Group1 from bot api", nil, replyKeyboard, false, false, 0)
+	if err != nil {
+		t.Fatalf("BotAPISendMessage: %v", err)
+	}
+	if msg.Peer.Type != domain.PeerTypeChannel || msg.Peer.ID != created.Channel.ID {
+		t.Fatalf("msg peer = %+v, want channel %d", msg.Peer, created.Channel.ID)
+	}
+	if msg.From.Type != domain.PeerTypeUser || msg.From.ID != bot.ID || !msg.Out {
+		t.Fatalf("msg from/out = %+v out=%v, want bot outbound", msg.From, msg.Out)
+	}
+	if msg.Body != "hello Group1 from bot api" || msg.ID == 0 || msg.Pts == 0 {
+		t.Fatalf("msg = %+v, want durable channel message with id and pts", msg)
+	}
+
+	history, err := channelService.GetHistory(ctx, owner.ID, domain.ChannelHistoryFilter{ChannelID: created.Channel.ID, Limit: 10})
+	if err != nil {
+		t.Fatalf("GetHistory: %v", err)
+	}
+	if len(history.Messages) < 1 || history.Messages[0].SenderUserID != bot.ID || history.Messages[0].Body != msg.Body ||
+		history.Messages[0].ReplyMarkup == nil || history.Messages[0].ReplyMarkup.Kind() != domain.MessageReplyMarkupKeyboard ||
+		history.Messages[0].ReplyMarkup.Keyboard[0][0].Text != "Help" {
+		t.Fatalf("history messages = %+v, want bot channel message", history.Messages)
+	}
+	if pushed := sessions.pushedUserIDs(); len(pushed) != 0 {
+		t.Fatalf("Core pushed durable channel update directly: %v", pushed)
+	}
+}
+
+func TestBotAPIRichMessagePrivateSendEditAndPlainReplacement(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	markup := &domain.MessageReplyMarkup{Type: domain.MessageReplyMarkupInline, Inline: [][]domain.MarkupButton{{{
+		Type: domain.MarkupButtonCallback, Text: "Info", Data: []byte("menu:info"),
+	}}}}
+	sent, err := fixture.router.BotAPISendRichMessage(fixture.ctx, fixture.bot.ID, fixture.owner.ID, domain.BotAPIRichMessageInput{
+		HTML: `<h4>Admin</h4><p>Status: active</p>`, SkipEntityDetection: true,
+	}, markup, false, false, 0, 0)
+	if err != nil {
+		t.Fatalf("BotAPISendRichMessage: %v", err)
+	}
+	if sent.ID <= 0 || sent.Pts <= 0 || sent.Body != "" || sent.RichMessage == nil || len(sent.RichMessage.BotAPIProjection) == 0 ||
+		sent.ReplyMarkup == nil || string(sent.ReplyMarkup.Inline[0][0].Data) != "menu:info" {
+		t.Fatalf("sent rich message = %+v", sent)
+	}
+
+	botHistory := privateBotAPIHistory(t, fixture, fixture.bot.ID, fixture.owner.ID)
+	if botHistory.ID != sent.ID || botHistory.RichMessage == nil || botHistory.Body != "" {
+		t.Fatalf("bot rich history = %+v", botHistory)
+	}
+	ownerHistory := privateBotAPIHistory(t, fixture, fixture.owner.ID, fixture.bot.ID)
+	if ownerHistory.RichMessage == nil || len(ownerHistory.RichMessage.BotAPIProjection) == 0 || ownerHistory.ReplyMarkup == nil {
+		t.Fatalf("owner rich history = %+v", ownerHistory)
+	}
+
+	edited, err := fixture.router.BotAPIEditRichMessage(fixture.ctx, fixture.bot.ID, fixture.owner.ID, sent.ID, domain.BotAPIRichMessageInput{
+		Markdown: "## Updated\n\nSubscription: active", SkipEntityDetection: true,
+	}, true, markup)
+	if err != nil {
+		t.Fatalf("BotAPIEditRichMessage: %v", err)
+	}
+	if edited.RichMessage == nil || edited.Body != "" || edited.EditDate == 0 || edited.Pts <= sent.Pts ||
+		!strings.Contains(string(edited.RichMessage.BotAPIProjection), "Updated") {
+		t.Fatalf("edited rich message = %+v projection=%s", edited, edited.RichMessage.BotAPIProjection)
+	}
+	ownerHistory = privateBotAPIHistory(t, fixture, fixture.owner.ID, fixture.bot.ID)
+	if ownerHistory.RichMessage == nil || !strings.Contains(string(ownerHistory.RichMessage.BotAPIProjection), "Updated") {
+		t.Fatalf("owner edited rich history = %+v", ownerHistory)
+	}
+
+	plain, err := fixture.router.BotAPIEditMessageText(fixture.ctx, fixture.bot.ID, fixture.owner.ID, sent.ID, "Classic menu", nil, false, nil, false)
+	if err != nil {
+		t.Fatalf("BotAPIEditMessageText replacing rich: %v", err)
+	}
+	if plain.Body != "Classic menu" || plain.RichMessage != nil {
+		t.Fatalf("plain replacement = %+v", plain)
+	}
+	ownerHistory = privateBotAPIHistory(t, fixture, fixture.owner.ID, fixture.bot.ID)
+	if ownerHistory.Body != "Classic menu" || ownerHistory.RichMessage != nil {
+		t.Fatalf("owner plain replacement history = %+v", ownerHistory)
+	}
+}
+
+func TestBotAPIRichMessageSupergroupSendAndEdit(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	chatID := -botAPIChannelChatIDBase - fixture.channel.ID
+	markup := &domain.MessageReplyMarkup{Type: domain.MessageReplyMarkupInline, Inline: [][]domain.MarkupButton{{{
+		Type: domain.MarkupButtonCallback, Text: "Status", Data: []byte("channel:status"),
+	}}}}
+	sent, err := fixture.router.BotAPISendRichMessage(fixture.ctx, fixture.bot.ID, chatID, domain.BotAPIRichMessageInput{
+		HTML: `<h4>Group menu</h4><p>Status: active</p>`, SkipEntityDetection: true,
+	}, markup, false, false, 0, 0)
+	if err != nil {
+		t.Fatalf("BotAPISendRichMessage channel: %v", err)
+	}
+	if sent.Peer != (domain.Peer{Type: domain.PeerTypeChannel, ID: fixture.channel.ID}) || sent.ID <= 0 || sent.Pts <= 0 ||
+		sent.RichMessage == nil || sent.ReplyMarkup == nil || string(sent.ReplyMarkup.Inline[0][0].Data) != "channel:status" {
+		t.Fatalf("sent channel rich message = %+v", sent)
+	}
+	history, err := fixture.channels.GetHistory(fixture.ctx, fixture.owner.ID, domain.ChannelHistoryFilter{
+		ChannelID: fixture.channel.ID, Limit: 1,
+	})
+	if err != nil || len(history.Messages) != 1 || history.Messages[0].RichMessage == nil || history.Messages[0].Body != "" {
+		t.Fatalf("channel rich history = %+v err=%v", history.Messages, err)
+	}
+
+	edited, err := fixture.router.BotAPIEditRichMessage(fixture.ctx, fixture.bot.ID, chatID, sent.ID, domain.BotAPIRichMessageInput{
+		Markdown: "## Updated group menu\n\nStatus: active", SkipEntityDetection: true,
+	}, true, markup)
+	if err != nil {
+		t.Fatalf("BotAPIEditRichMessage channel: %v", err)
+	}
+	if edited.RichMessage == nil || edited.Body != "" || edited.EditDate == 0 || edited.Pts <= sent.Pts ||
+		!strings.Contains(string(edited.RichMessage.BotAPIProjection), "Updated group") {
+		t.Fatalf("edited channel rich message = %+v sent_pts=%d projection=%s", edited, sent.Pts, edited.RichMessage.BotAPIProjection)
+	}
+	history, err = fixture.channels.GetHistory(fixture.ctx, fixture.owner.ID, domain.ChannelHistoryFilter{
+		ChannelID: fixture.channel.ID, Limit: 1,
+	})
+	if err != nil || len(history.Messages) != 1 || history.Messages[0].RichMessage == nil ||
+		!strings.Contains(string(history.Messages[0].RichMessage.BotAPIProjection), "Updated group") {
+		t.Fatalf("edited channel history = %+v err=%v", history.Messages, err)
+	}
+}
+
+func privateBotAPIHistory(t *testing.T, fixture botAPIReceiveFixture, ownerID, peerID int64) domain.Message {
+	t.Helper()
+	history, err := fixture.messages.GetHistory(fixture.ctx, ownerID, domain.MessageFilter{
+		HasPeer: true, Peer: domain.Peer{Type: domain.PeerTypeUser, ID: peerID}, Limit: 1,
+	})
+	if err != nil || len(history.Messages) != 1 {
+		t.Fatalf("GetHistory owner=%d peer=%d len=%d err=%v", ownerID, peerID, len(history.Messages), err)
+	}
+	return history.Messages[0]
+}
+
+func TestBotAPISendMessageRejectsUnsupportedNegativeChatID(t *testing.T) {
+	r := New(Config{}, Deps{}, zaptest.NewLogger(t), clock.System)
+
+	_, err := r.BotAPISendMessage(context.Background(), 1234, -42, "hello", nil, nil, false, false, 0)
+	if err == nil || !strings.Contains(err.Error(), "CHAT_ID_INVALID") {
+		t.Fatalf("BotAPISendMessage err = %v, want CHAT_ID_INVALID", err)
+	}
+}
+
+func TestBotAPISendMessageMissingSupergroupReturnsChatIDInvalid(t *testing.T) {
+	channelService := appchannels.NewService(memory.NewChannelStore())
+	r := New(Config{}, Deps{Channels: channelService}, zaptest.NewLogger(t), clock.System)
+
+	chatID := -botAPIChannelChatIDBase - 9999
+	_, err := r.BotAPISendMessage(context.Background(), 1234, chatID, "hello", nil, nil, false, false, 0)
+	if err == nil || !strings.Contains(err.Error(), "CHAT_ID_INVALID") {
+		t.Fatalf("BotAPISendMessage err = %v, want CHAT_ID_INVALID", err)
+	}
+}
+
+func TestBotAPIGetUpdatesReceivesVisibleSupergroupMessage(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	res, err := fixture.channels.SendMessage(fixture.ctx, fixture.owner.ID, domain.SendChannelMessageRequest{
+		UserID:              fixture.owner.ID,
+		ChannelID:           fixture.channel.ID,
+		RandomID:            1001,
+		Message:             "/ping from group",
+		SkipRecipientLookup: true,
+		Date:                100,
+	})
+	if err != nil {
+		t.Fatalf("SendMessage: %v", err)
+	}
+	if err := fixture.router.enqueueBotAPIChannelMessageUpdate(fixture.ctx, fixture.owner.ID, res); err != nil {
+		t.Fatalf("enqueueBotAPIChannelMessageUpdate: %v", err)
+	}
+
+	events, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, 0)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("events = %+v, want one bot api update", events)
+	}
+	event := events[0]
+	if event.Type != domain.UpdateEventNewMessage || event.Pts <= 0 {
+		t.Fatalf("event = %+v, want new_message with update_id", event)
+	}
+	if event.Message.Peer.Type != domain.PeerTypeChannel || event.Message.Peer.ID != fixture.channel.ID {
+		t.Fatalf("message peer = %+v, want channel %d", event.Message.Peer, fixture.channel.ID)
+	}
+	if event.Message.From.Type != domain.PeerTypeUser || event.Message.From.ID != fixture.owner.ID || event.Message.Body != "/ping from group" || event.Message.Out {
+		t.Fatalf("message = %+v, want incoming owner command", event.Message)
+	}
+
+	next, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, int64(event.Pts)+1)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates confirm: %v", err)
+	}
+	if len(next) != 0 {
+		t.Fatalf("next events = %+v, want empty after offset confirm", next)
+	}
+}
+
+func TestBotAPIGetUpdatesSkipsHiddenPrivacySupergroupMessage(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	res, err := fixture.channels.SendMessage(fixture.ctx, fixture.owner.ID, domain.SendChannelMessageRequest{
+		UserID:              fixture.owner.ID,
+		ChannelID:           fixture.channel.ID,
+		RandomID:            1002,
+		Message:             "plain group chatter",
+		SkipRecipientLookup: true,
+		Date:                101,
+	})
+	if err != nil {
+		t.Fatalf("SendMessage: %v", err)
+	}
+	if len(res.SkipDeliveryUserIDs) == 0 {
+		t.Fatalf("SkipDeliveryUserIDs empty, want privacy bot excluded")
+	}
+	if err := fixture.router.enqueueBotAPIChannelMessageUpdate(fixture.ctx, fixture.owner.ID, res); err != nil {
+		t.Fatalf("enqueueBotAPIChannelMessageUpdate: %v", err)
+	}
+
+	events, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, 0)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("events = %+v, want hidden privacy message excluded", events)
+	}
+}
+
+func TestBotAPIGetUpdatesReceivesPrivateBotMessage(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	res, err := fixture.messages.SendPrivateText(fixture.ctx, fixture.owner.ID, domain.SendPrivateTextRequest{
+		SenderUserID:    fixture.owner.ID,
+		RecipientUserID: fixture.bot.ID,
+		RandomID:        2001,
+		Message:         "private hello",
+		Date:            102,
+	})
+	if err != nil {
+		t.Fatalf("SendPrivateText: %v", err)
+	}
+	if err := fixture.router.enqueueBotAPIPrivateMessageUpdate(fixture.ctx, res); err != nil {
+		t.Fatalf("enqueue bot api private message update: %v", err)
+	}
+
+	events, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, 0)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates: %v", err)
+	}
+	if len(events) != 1 || events[0].Message.Peer.Type != domain.PeerTypeUser || events[0].Message.Peer.ID != fixture.owner.ID || events[0].Message.Body != "private hello" {
+		t.Fatalf("events = %+v, want private incoming message", events)
+	}
+}
+
+func TestBotAPIGetUpdatesBatchesPrivateMessageProjection(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	counting := &countingBotAPIMessagesService{Service: fixture.messages}
+	fixture.router.deps.Messages = counting
+	for i, text := range []string{"private one", "private two"} {
+		res, err := fixture.messages.SendPrivateText(fixture.ctx, fixture.owner.ID, domain.SendPrivateTextRequest{
+			SenderUserID:    fixture.owner.ID,
+			RecipientUserID: fixture.bot.ID,
+			RandomID:        int64(2100 + i),
+			Message:         text,
+			Date:            120 + i,
+		})
+		if err != nil {
+			t.Fatalf("SendPrivateText %d: %v", i, err)
+		}
+		if err := fixture.router.enqueueBotAPIPrivateMessageUpdate(fixture.ctx, res); err != nil {
+			t.Fatalf("enqueue bot api private message update %d: %v", i, err)
+		}
+	}
+
+	events, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, 0)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %+v, want two private updates", events)
+	}
+	if counting.getMessagesCalls != 1 {
+		t.Fatalf("private GetMessages calls = %d, want 1 batched projection", counting.getMessagesCalls)
+	}
+}
+
+func TestBotAPIUpdateWaiterWakesOnPrivateEnqueue(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	version := fixture.router.BotAPIUpdateWaitVersion(fixture.bot.ID)
+	woke := make(chan bool, 1)
+	go func() {
+		woke <- fixture.router.WaitBotAPIUpdate(fixture.ctx, fixture.bot.ID, version, time.Second)
+	}()
+	res, err := fixture.messages.SendPrivateText(fixture.ctx, fixture.owner.ID, domain.SendPrivateTextRequest{
+		SenderUserID:    fixture.owner.ID,
+		RecipientUserID: fixture.bot.ID,
+		RandomID:        2201,
+		Message:         "wake bot api polling",
+		Date:            121,
+	})
+	if err != nil {
+		t.Fatalf("SendPrivateText: %v", err)
+	}
+	if err := fixture.router.enqueueBotAPIPrivateMessageUpdate(fixture.ctx, res); err != nil {
+		t.Fatalf("enqueue bot api private message update: %v", err)
+	}
+	select {
+	case ok := <-woke:
+		if !ok {
+			t.Fatalf("WaitBotAPIUpdate returned false, want notify wake")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("WaitBotAPIUpdate did not wake after enqueue")
+	}
+}
+
+func TestBotAPIChannelBatchEnqueueLoadsBotCandidatesOnce(t *testing.T) {
+	fixture := newBotAPIReceiveFixture(t, false)
+	counting := &countingBotCandidateChannelsService{Service: fixture.channels}
+	fixture.router.deps.Channels = counting
+	first, err := fixture.channels.SendMessage(fixture.ctx, fixture.owner.ID, domain.SendChannelMessageRequest{
+		UserID:              fixture.owner.ID,
+		ChannelID:           fixture.channel.ID,
+		RandomID:            3001,
+		Message:             "/first batch command",
+		SkipRecipientLookup: true,
+		Date:                103,
+	})
+	if err != nil {
+		t.Fatalf("SendMessage first: %v", err)
+	}
+	second, err := fixture.channels.SendMessage(fixture.ctx, fixture.owner.ID, domain.SendChannelMessageRequest{
+		UserID:              fixture.owner.ID,
+		ChannelID:           fixture.channel.ID,
+		RandomID:            3002,
+		Message:             "/second batch command",
+		SkipRecipientLookup: true,
+		Date:                104,
+	})
+	if err != nil {
+		t.Fatalf("SendMessage second: %v", err)
+	}
+
+	if err := fixture.router.enqueueBotAPIChannelMessagesUpdate(fixture.ctx, fixture.owner.ID, []domain.SendChannelMessageResult{first, second}); err != nil {
+		t.Fatalf("enqueueBotAPIChannelMessagesUpdate: %v", err)
+	}
+	if counting.activeBotMemberIDsCalls != 1 {
+		t.Fatalf("ActiveBotMemberIDs calls = %d, want 1 for same-channel batch", counting.activeBotMemberIDsCalls)
+	}
+	if counting.activeMemberIDsCalls != 0 {
+		t.Fatalf("ActiveMemberIDs calls = %d, want 0 on Bot API enqueue path", counting.activeMemberIDsCalls)
+	}
+	if counting.getMessagesCalls != 0 {
+		t.Fatalf("channel GetMessages calls during enqueue = %d, want 0 on ordinary send path", counting.getMessagesCalls)
+	}
+	events, err := fixture.router.BotAPIUpdates(fixture.ctx, fixture.bot.ID, 0)
+	if err != nil {
+		t.Fatalf("BotAPIUpdates: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %+v, want two bot api updates", events)
+	}
+	if counting.getMessagesCalls != 1 {
+		t.Fatalf("channel GetMessages calls after getUpdates = %d, want 1 batched projection", counting.getMessagesCalls)
+	}
+}
+
+type countingBotCandidateChannelsService struct {
+	*appchannels.Service
+	activeBotMemberIDsCalls int
+	activeMemberIDsCalls    int
+	getMessagesCalls        int
+}
+
+func (s *countingBotCandidateChannelsService) ActiveBotMemberIDs(ctx context.Context, viewerUserID, channelID int64, limit int) ([]int64, error) {
+	s.activeBotMemberIDsCalls++
+	return s.Service.ActiveBotMemberIDs(ctx, viewerUserID, channelID, limit)
+}
+
+func (s *countingBotCandidateChannelsService) ActiveMemberIDs(ctx context.Context, userID, channelID int64, limit int) ([]int64, error) {
+	s.activeMemberIDsCalls++
+	return s.Service.ActiveMemberIDs(ctx, userID, channelID, limit)
+}
+
+func (s *countingBotCandidateChannelsService) GetMessages(ctx context.Context, userID, channelID int64, ids []int) (domain.ChannelHistory, error) {
+	s.getMessagesCalls++
+	return s.Service.GetMessages(ctx, userID, channelID, ids)
+}
+
+type countingBotAPIMessagesService struct {
+	*appmessages.Service
+	getMessagesCalls int
+}
+
+func (s *countingBotAPIMessagesService) GetMessages(ctx context.Context, userID int64, ids []int) (domain.MessageList, error) {
+	s.getMessagesCalls++
+	return s.Service.GetMessages(ctx, userID, ids)
+}
+
+type botAPIReceiveFixture struct {
+	ctx      context.Context
+	owner    domain.User
+	bot      domain.User
+	channel  domain.Channel
+	router   *Router
+	channels *appchannels.Service
+	messages *appmessages.Service
+}
+
+func newBotAPIReceiveFixture(t *testing.T, botChatHistory bool) botAPIReceiveFixture {
+	t.Helper()
+	ctx := context.Background()
+	userStore := memory.NewUserStore()
+	owner, err := userStore.Create(ctx, domain.User{AccessHash: 1001, Phone: "15550008101", FirstName: "Owner"})
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	dialogStore := memory.NewDialogStore()
+	messageStore := memory.NewMessageStore(dialogStore)
+	botStore := memory.NewBotStore(userStore)
+	botStore.AttachDeliveryDependencies(dialogStore, memory.NewDeliveryOutboxStore())
+	bot, _, err := botStore.CreateBotAccountWithDelivery(ctx, domain.User{AccessHash: 2001, FirstName: "TetrisBot", Username: "TetrisBot"}, domain.BotProfile{
+		OwnerUserID: owner.ID,
+		TokenSecret: "secret",
+		ChatHistory: botChatHistory,
+	}, rpcTestBotLifecycleEffects)
+	if err != nil {
+		t.Fatalf("create bot: %v", err)
+	}
+	botsService := appbots.NewService(userStore, botStore, messageStore)
+	channelStore := memory.NewChannelStore()
+	channelsService := appchannels.NewService(channelStore, appchannels.WithBotProfileResolver(botsService))
+	created, err := channelsService.CreateMegagroupFromCreateChat(ctx, owner.ID, domain.CreateChannelRequest{
+		Title:         "Group1",
+		MemberUserIDs: []int64{bot.ID},
+		Date:          10,
+	})
+	if err != nil {
+		t.Fatalf("create megagroup: %v", err)
+	}
+	messagesService := appmessages.NewService(messageStore, dialogStore)
+	router := New(Config{}, Deps{
+		Users:         appusers.NewService(userStore),
+		Messages:      messagesService,
+		Channels:      channelsService,
+		Bots:          botsService,
+		BotAPIUpdates: memory.NewBotAPIUpdateStore(),
+		BotCallbacks:  storetest.NewBotCallbackRegistryStore(),
+		Sessions:      &captureSessions{channelMembers: map[int64][]int64{created.Channel.ID: {owner.ID, bot.ID}}},
+	}, zaptest.NewLogger(t), clock.System)
+	return botAPIReceiveFixture{
+		ctx:      ctx,
+		owner:    owner,
+		bot:      bot,
+		channel:  created.Channel,
+		router:   router,
+		channels: channelsService,
+		messages: messagesService,
+	}
+}

@@ -1,0 +1,237 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - v2
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-test:
+    name: Go tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Test
+        run: go test ./... -count=1
+
+  admin-web:
+    name: Admin web build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cmd/telesrv-admin/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: cmd/telesrv-admin/web
+        run: npm ci
+
+      - name: Build
+        working-directory: cmd/telesrv-admin/web
+        run: npm run build
+
+  grammystore:
+    name: Grammy store bot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cmd/bots/grammystore/package-lock.json
+
+      - name: Install dependencies
+        working-directory: cmd/bots/grammystore
+        run: npm ci
+
+      - name: Check syntax
+        working-directory: cmd/bots/grammystore
+        run: npm run check
+
+      - name: Test
+        working-directory: cmd/bots/grammystore
+        run: npm test
+
+  docker-smoke:
+    name: Docker full-topology smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Generate isolated environment
+        run: ./scripts/new-docker-env.sh --advertise-ip 127.0.0.1
+
+      - name: Validate deployment inputs
+        run: |
+          docker compose version
+          sh -n scripts/new-docker-env.sh
+          bash -n scripts/start-docker.sh
+          sh -n deploy/docker/docker-entrypoint.sh
+          compose=(docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml)
+          bridge=("${compose[@]}" -f deploy/docker/compose.sfu-bridge-network.yaml)
+          "${compose[@]}" config --quiet
+          "${compose[@]}" config --format json | python3 -c 'import json,sys; s=json.load(sys.stdin)["services"]["sfu"]; assert s.get("network_mode") == "host"; assert len(s.get("ports", [])) == 0; assert str(s["environment"]["TELESRV_TURN_RELAY_MAX_PORT"]) == "12999"'
+          "${bridge[@]}" config --quiet
+          "${bridge[@]}" config --format json | python3 -c 'import json,sys; s=json.load(sys.stdin)["services"]["sfu"]; assert s.get("network_mode") != "host"; assert len(s.get("ports", [])) == 66; assert str(s["environment"]["TELESRV_TURN_RELAY_MAX_PORT"]) == "12563"'
+
+      - name: Build role images
+        run: |
+          compose=(docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml)
+          for role in migrate file core egress sfu admin edge; do
+            echo "Building ${role} image"
+            "${compose[@]}" build --pull "$role"
+          done
+
+      - name: Start and wait for readiness
+        run: docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml up -d --no-build --wait --wait-timeout 300
+
+      - name: Verify runtime hardening
+        run: |
+          compose=(docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml)
+          migrate_id="$("${compose[@]}" ps --all --quiet migrate)"
+          test -n "$migrate_id"
+          test "$(docker inspect --format '{{.State.ExitCode}}' "$migrate_id")" = "0"
+          for service in migrate file core egress sfu admin edge; do
+            container_id="$("${compose[@]}" ps --all --quiet "$service")"
+            test -n "$container_id"
+            test "$(docker inspect --format '{{.Config.User}}' "$container_id")" = "10001:10001"
+            test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container_id")" = "true"
+            test "$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$container_id")" = '["ALL"]'
+            test "$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$container_id")" = "512"
+            test "$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$container_id")" = '["no-new-privileges:true"]'
+          done
+          core_id="$("${compose[@]}" ps --quiet core)"
+          test -n "$(docker port "$core_id" 2400/tcp)"
+          if docker port "$core_id" 12400/udp >/dev/null 2>&1; then
+            echo "Core must not publish the SFU-owned TURN listener" >&2
+            exit 1
+          fi
+          sfu_id="$("${compose[@]}" ps --quiet sfu)"
+          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$sfu_id")" = "host"
+          admin_id="$("${compose[@]}" ps --quiet admin)"
+          test -n "$(docker port "$admin_id" 2600/tcp)"
+          curl --fail --silent --show-error http://127.0.0.1:2600/ >/dev/null
+          timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/2400'
+          python3 - <<'PY'
+          import os
+          import socket
+          import struct
+
+          transaction_id = os.urandom(12)
+          request = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, transaction_id)
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
+              client.settimeout(5)
+              client.sendto(request, ("127.0.0.1", 12400))
+              response, _ = client.recvfrom(2048)
+          message_type, _, cookie = struct.unpack("!HHI", response[:8])
+          assert message_type == 0x0101, hex(message_type)
+          assert cookie == 0x2112A442, hex(cookie)
+          assert response[8:20] == transaction_id
+          PY
+          core_logs="$("${compose[@]}" logs --no-color core)"
+          sfu_logs="$("${compose[@]}" logs --no-color sfu)"
+          case "$core_logs" in
+            *"turn credential issuer ready"*) ;;
+            *) echo "Core TURN credential issuer did not become ready" >&2; exit 1 ;;
+          esac
+          case "$core_logs" in
+            *"turn listening"*) echo "Core unexpectedly owns a TURN listener" >&2; exit 1 ;;
+          esac
+          case "$core_logs" in
+            *"live stream rtmp ingest listening"*) ;;
+            *) echo "Core RTMP listener did not become ready" >&2; exit 1 ;;
+          esac
+          case "$sfu_logs" in
+            *"turn listening"*) ;;
+            *) echo "SFU TURN listener did not become ready" >&2; exit 1 ;;
+          esac
+          "${compose[@]}" ps --all
+
+      - name: Verify dependency-aware readiness
+        run: |
+          compose=(docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml)
+          "${compose[@]}" stop core
+          edge_failed_closed=false
+          admin_failed_closed=false
+          sfu_failed_closed=false
+          for attempt in $(seq 1 45); do
+            if test "$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet edge)")" = "unhealthy"; then
+              edge_failed_closed=true
+            fi
+            if test "$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet admin)")" = "unhealthy"; then
+              admin_failed_closed=true
+            fi
+            if test "$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet sfu)")" = "unhealthy"; then
+              sfu_failed_closed=true
+            fi
+            if test "$edge_failed_closed" = "true" && test "$admin_failed_closed" = "true" && test "$sfu_failed_closed" = "true"; then
+              break
+            fi
+            sleep 2
+          done
+          test "$edge_failed_closed" = "true"
+          test "$admin_failed_closed" = "true"
+          test "$sfu_failed_closed" = "true"
+          "${compose[@]}" start core
+          stack_recovered=false
+          for attempt in $(seq 1 60); do
+            core_health="$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet core)")"
+            edge_health="$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet edge)")"
+            admin_health="$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet admin)")"
+            sfu_health="$(docker inspect --format '{{.State.Health.Status}}' "$("${compose[@]}" ps --quiet sfu)")"
+            if test "$core_health" = "healthy" && test "$edge_health" = "healthy" && test "$admin_health" = "healthy" && test "$sfu_health" = "healthy"; then
+              stack_recovered=true
+              break
+            fi
+            sleep 2
+          done
+          test "$stack_recovered" = "true"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml logs --no-color --tail 200
+
+      - name: Remove isolated stack
+        if: always()
+        run: docker compose -p telesrv-ci --project-directory deploy/docker --env-file deploy/docker/.env -f deploy/docker/compose.yaml down --volumes --remove-orphans

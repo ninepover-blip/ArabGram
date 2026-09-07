@@ -1,0 +1,533 @@
+name: ${COMPOSE_PROJECT_NAME:-telesrv}
+
+x-build-args: &build-args
+  VCS_REF: ${TELESRV_BUILD_COMMIT:-unknown}
+  VCS_BRANCH: ${TELESRV_BUILD_BRANCH:-v2}
+  VCS_TREE_STATE: ${TELESRV_BUILD_TREE_STATE:-unknown}
+  BUILD_DATE: ${TELESRV_BUILD_DATE:-unknown}
+
+x-app: &app
+  init: true
+  restart: unless-stopped
+  read_only: true
+  user: "10001:10001"
+  cap_drop:
+    - ALL
+  pids_limit: 512
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m
+  stop_grace_period: 30s
+  logging: &app-logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:979c4379dd698aba0b890599a6104e082035f98ef31d9b9291ec22f2b13059ca
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-telesrv_v2}
+      POSTGRES_USER: ${POSTGRES_USER:-telesrv}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/docker/.env}
+      POSTGRES_INITDB_ARGS: --data-checksums
+      TZ: UTC
+    command:
+      - postgres
+      - -c
+      - max_locks_per_transaction=512
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - track_io_timing=on
+    shm_size: 256mb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      start_interval: 1s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 1m
+    logging: *app-logging
+    networks:
+      - data
+
+  redis:
+    image: redis:7-alpine@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+    environment:
+      REDIS_PASSWORD: ${TELESRV_REDIS_PASSWORD:?set TELESRV_REDIS_PASSWORD in deploy/docker/.env}
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redis_data:/data
+    ports:
+      - name: sfu-host-redis
+        target: 6379
+        published: "${TELESRV_SFU_REDIS_HOST_PORT:-16379}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -qx PONG"]
+      interval: 5s
+      start_interval: 1s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *app-logging
+    networks:
+      - data
+      - control
+      # A host-network container cannot join the internal control network.
+      # This dedicated return path makes the loopback-only 16379 publication
+      # reachable by SFU on Linux and Docker Desktop without exposing Redis to
+      # any other application container network.
+      - sfu_host_access
+
+  migrate:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/migrate:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: migrate
+      args: *build-args
+    restart: "no"
+    environment:
+      TELESRV_POSTGRES_DSN: ${TELESRV_POSTGRES_DSN:?set TELESRV_POSTGRES_DSN in deploy/docker/.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+
+  file:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/file:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: file
+      args: *build-args
+    environment:
+      TELESRV_INSTANCE_ID: ${TELESRV_FILE_INSTANCE_ID:-file-1}
+      TMPDIR: /var/tmp/telesrv-file
+      TELESRV_LOG_LEVEL: ${TELESRV_LOG_LEVEL:-info}
+      TELESRV_POSTGRES_DSN: ${TELESRV_POSTGRES_DSN:?set TELESRV_POSTGRES_DSN in deploy/docker/.env}
+      TELESRV_FILE_TOKEN: ${TELESRV_FILE_TOKEN:?set TELESRV_FILE_TOKEN in deploy/docker/.env}
+      TELESRV_BLOB_BACKEND: ${TELESRV_BLOB_BACKEND:-localfs}
+      TELESRV_EXTERNAL_MEDIA_ENABLE: ${TELESRV_EXTERNAL_MEDIA_ENABLE:-true}
+      TELESRV_WEBPAGE_PREVIEW_ENABLE: ${TELESRV_WEBPAGE_PREVIEW_ENABLE:-true}
+      TELESRV_S3_ENDPOINT: ${TELESRV_S3_ENDPOINT:-}
+      TELESRV_S3_REGION: ${TELESRV_S3_REGION:-}
+      TELESRV_S3_BUCKET: ${TELESRV_S3_BUCKET:-}
+      TELESRV_S3_ACCESS_KEY_ID: ${TELESRV_S3_ACCESS_KEY_ID:-}
+      TELESRV_S3_SECRET_ACCESS_KEY: ${TELESRV_S3_SECRET_ACCESS_KEY:-}
+      TELESRV_S3_USE_SSL: ${TELESRV_S3_USE_SSL:-true}
+      TELESRV_S3_PATH_STYLE: ${TELESRV_S3_PATH_STYLE:-false}
+      TELESRV_S3_CREATE_BUCKET: ${TELESRV_S3_CREATE_BUCKET:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - file_data:/var/lib/telesrv-file
+      - file_tmp:/var/tmp/telesrv-file
+    expose:
+      - "2520"
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --grpc
+        - 127.0.0.1:2520,telesrv.filedata.v1.FileDataService,TELESRV_FILE_TOKEN
+        - --postgres-dsn-env
+        - TELESRV_POSTGRES_DSN
+        - --timeout
+        - 3s
+      interval: 5s
+      start_interval: 1s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - data
+      - control
+      - outbound
+
+  core:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/core:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: core
+      args: *build-args
+    environment:
+      TELESRV_INSTANCE_ID: ${TELESRV_CORE_INSTANCE_ID:-core-1}
+      TMPDIR: /var/tmp/telesrv-core
+      TELESRV_LOG_LEVEL: ${TELESRV_LOG_LEVEL:-info}
+      TELESRV_POSTGRES_DSN: ${TELESRV_POSTGRES_DSN:?set TELESRV_POSTGRES_DSN in deploy/docker/.env}
+      TELESRV_REDIS_PASSWORD: ${TELESRV_REDIS_PASSWORD:?set TELESRV_REDIS_PASSWORD in deploy/docker/.env}
+      TELESRV_CORE_EXEC_TOKEN: ${TELESRV_CORE_EXEC_TOKEN:?set TELESRV_CORE_EXEC_TOKEN in deploy/docker/.env}
+      TELESRV_FILE_TOKEN: ${TELESRV_FILE_TOKEN:?set TELESRV_FILE_TOKEN in deploy/docker/.env}
+      TELESRV_GROUPCALL_CONTROL_TOKEN: ${TELESRV_GROUPCALL_CONTROL_TOKEN:?set TELESRV_GROUPCALL_CONTROL_TOKEN in deploy/docker/.env}
+      TELESRV_SFU_CONTROL_TOKEN: ${TELESRV_SFU_CONTROL_TOKEN:?set TELESRV_SFU_CONTROL_TOKEN in deploy/docker/.env}
+      TELESRV_ADMIN_API_TOKEN: ${TELESRV_ADMIN_API_TOKEN:?set TELESRV_ADMIN_API_TOKEN in deploy/docker/.env}
+      TELESRV_DEV_AUTH_CODE: ${TELESRV_DEV_AUTH_CODE:?set TELESRV_DEV_AUTH_CODE in deploy/docker/.env}
+      TELESRV_PHONE_CODE_DELIVERY_PROVIDER: ${TELESRV_PHONE_CODE_DELIVERY_PROVIDER:-development}
+      TELESRV_ALLOW_INSECURE_DEVELOPMENT_AUTH: ${TELESRV_ALLOW_INSECURE_DEVELOPMENT_AUTH:-false}
+      TELESRV_OTP_WEBHOOK_URL: ${TELESRV_OTP_WEBHOOK_URL:-}
+      TELESRV_OTP_WEBHOOK_SECRET: ${TELESRV_OTP_WEBHOOK_SECRET:-}
+      TELESRV_OTP_WEBHOOK_TIMEOUT: ${TELESRV_OTP_WEBHOOK_TIMEOUT:-5s}
+      TELESRV_ADVERTISE_IP: ${TELESRV_ADVERTISE_IP:?set the client-reachable TELESRV_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_ADVERTISE_PORT: ${TELESRV_ADVERTISE_PORT:-2398}
+      TELESRV_DEFAULT_COUNTRY_CODE: ${TELESRV_DEFAULT_COUNTRY_CODE:-CN}
+      TELESRV_PUBLIC_BASE_URL: ${TELESRV_PUBLIC_BASE_URL:?set the self-hosted public base URL in deploy/docker/.env}
+      TELESRV_PUBLIC_APP_SCHEME: ${TELESRV_PUBLIC_APP_SCHEME:-telesrv}
+      TELESRV_PUBLIC_WEB_BASE_URL: ${TELESRV_PUBLIC_WEB_BASE_URL:?set the self-hosted public web URL in deploy/docker/.env}
+      TELESRV_BRAND_PRODUCT_NAME: ${TELESRV_BRAND_PRODUCT_NAME:-Telesrv}
+      TELESRV_BRAND_PRODUCT_USERNAME: ${TELESRV_BRAND_PRODUCT_USERNAME:-telesrv}
+      TELESRV_BRAND_DESKTOP_APP_NAME: ${TELESRV_BRAND_DESKTOP_APP_NAME:-Telesrv Desktop}
+      TELESRV_BRAND_ANDROID_APP_NAME: ${TELESRV_BRAND_ANDROID_APP_NAME:-Telesrv Android}
+      TELESRV_BRAND_IOS_APP_NAME: ${TELESRV_BRAND_IOS_APP_NAME:-Telesrv iOS}
+      TELESRV_BRAND_MACOS_APP_NAME: ${TELESRV_BRAND_MACOS_APP_NAME:-Telesrv macOS}
+      TELESRV_BRAND_WEB_A_APP_NAME: ${TELESRV_BRAND_WEB_A_APP_NAME:-Telesrv Web A}
+      TELESRV_BRAND_WEB_K_APP_NAME: ${TELESRV_BRAND_WEB_K_APP_NAME:-Telesrv Web K}
+      TELESRV_BRAND_PREMIUM_NAME: ${TELESRV_BRAND_PREMIUM_NAME:-Telesrv Premium}
+      TELESRV_BRAND_STARS_NAME: ${TELESRV_BRAND_STARS_NAME:-Telesrv Stars}
+      TELESRV_EXTERNAL_MEDIA_ENABLE: ${TELESRV_EXTERNAL_MEDIA_ENABLE:-true}
+      TELESRV_WEBPAGE_PREVIEW_ENABLE: ${TELESRV_WEBPAGE_PREVIEW_ENABLE:-true}
+      TELESRV_TURN_ENABLE: ${TELESRV_TURN_ENABLE:-true}
+      TELESRV_TURN_UDP_PORT: ${TELESRV_TURN_UDP_PORT:-12400}
+      TELESRV_TURN_ADVERTISE_IP: ${TELESRV_TURN_ADVERTISE_IP:?set the client-reachable TELESRV_TURN_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_TURN_SECRET: ${TELESRV_TURN_SECRET:?set TELESRV_TURN_SECRET in deploy/docker/.env}
+      TELESRV_CALL_TURN_CREDENTIAL_TTL: ${TELESRV_CALL_TURN_CREDENTIAL_TTL:-6h}
+      TELESRV_CALL_FORCE_RELAY: ${TELESRV_CALL_FORCE_RELAY:-false}
+      TELESRV_LIVESTREAM_ENABLE: ${TELESRV_LIVESTREAM_ENABLE:-true}
+      TELESRV_LIVESTREAM_RTMP_PORT: ${TELESRV_LIVESTREAM_RTMP_PORT:-2400}
+      TELESRV_LIVESTREAM_RTMP_URL: ${TELESRV_LIVESTREAM_RTMP_URL:?set the client-reachable TELESRV_LIVESTREAM_RTMP_URL in deploy/docker/.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      file:
+        condition: service_healthy
+    volumes:
+      - core_state:/var/lib/telesrv-core
+      - core_tmp:/var/tmp/telesrv-core
+    expose:
+      - "2420"
+      - "2440"
+      - "2599"
+    ports:
+      - name: public-links
+        target: 2401
+        published: "${TELESRV_PUBLIC_LINK_PORT:-2401}"
+        host_ip: ${TELESRV_LOCAL_BIND_IP:-127.0.0.1}
+        protocol: tcp
+      - name: rtmp-ingest
+        target: ${TELESRV_LIVESTREAM_RTMP_PORT:-2400}
+        published: "${TELESRV_LIVESTREAM_RTMP_PORT:-2400}"
+        host_ip: ${TELESRV_PUBLIC_BIND_IP:-0.0.0.0}
+        protocol: tcp
+      - name: sfu-host-groupcall-control
+        target: 2420
+        published: "${TELESRV_GROUPCALL_CONTROL_HOST_PORT:-12420}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --tcp
+        - 127.0.0.1:2401
+        - --tcp
+        - 127.0.0.1:2420
+        - --tcp
+        - 127.0.0.1:2599
+        - --grpc
+        - 127.0.0.1:2440,telesrv.coreexec.v1.CoreExecService,TELESRV_CORE_EXEC_TOKEN
+        - --grpc
+        - file:2520,telesrv.filedata.v1.FileDataService,TELESRV_FILE_TOKEN
+        - --postgres-dsn-env
+        - TELESRV_POSTGRES_DSN
+        - --redis
+        - redis:6379,TELESRV_REDIS_PASSWORD,0
+        - --timeout
+        - 3s
+      interval: 5s
+      start_interval: 1s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    networks:
+      - data
+      - control
+      - outbound
+
+  admin:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/admin:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: admin
+      args: *build-args
+    environment:
+      TELESRV_POSTGRES_DSN: ${TELESRV_POSTGRES_DSN:?set TELESRV_POSTGRES_DSN in deploy/docker/.env}
+      TELESRV_ADMIN_API_TOKEN: ${TELESRV_ADMIN_API_TOKEN:?set TELESRV_ADMIN_API_TOKEN in deploy/docker/.env}
+      TELESRV_ADMIN_UI_PASSWORD: ${TELESRV_ADMIN_UI_PASSWORD:-}
+      TELESRV_ADMIN_UI_TOKEN: ${TELESRV_ADMIN_UI_TOKEN:-}
+      TELESRV_ADMIN_SESSION_KEY: ${TELESRV_ADMIN_SESSION_KEY:?set TELESRV_ADMIN_SESSION_KEY in deploy/docker/.env}
+      TELESRV_BLOB_BACKEND: ${TELESRV_BLOB_BACKEND:-localfs}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      core:
+        condition: service_healthy
+    volumes:
+      - file_data:/var/lib/telesrv-file:ro
+    ports:
+      - name: admin-ui
+        target: 2600
+        published: "${TELESRV_ADMIN_PORT:-2600}"
+        host_ip: ${TELESRV_ADMIN_BIND_IP:-127.0.0.1}
+        protocol: tcp
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --tcp
+        - 127.0.0.1:2600
+        - --tcp
+        - core:2599
+        - --postgres-dsn-env
+        - TELESRV_POSTGRES_DSN
+        - --timeout
+        - 3s
+      interval: 5s
+      start_interval: 1s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - data
+      - control
+      # Keep the published Admin port functional even though its data/control
+      # networks are intentionally internal. No other service joins this
+      # return-path network.
+      - admin_host_access
+
+  egress:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/egress:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: egress
+      args: *build-args
+    environment:
+      TELESRV_INSTANCE_ID: ${TELESRV_EGRESS_INSTANCE_ID:-egress-1}
+      TELESRV_LOG_LEVEL: ${TELESRV_LOG_LEVEL:-info}
+      TELESRV_POSTGRES_DSN: ${TELESRV_POSTGRES_DSN:?set TELESRV_POSTGRES_DSN in deploy/docker/.env}
+      TELESRV_REDIS_PASSWORD: ${TELESRV_REDIS_PASSWORD:?set TELESRV_REDIS_PASSWORD in deploy/docker/.env}
+      TELESRV_EGRESS_DELIVERY_TOKEN: ${TELESRV_EGRESS_DELIVERY_TOKEN:?set TELESRV_EGRESS_DELIVERY_TOKEN in deploy/docker/.env}
+      TELESRV_ADVERTISE_IP: ${TELESRV_ADVERTISE_IP:?set TELESRV_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_ADVERTISE_PORT: ${TELESRV_ADVERTISE_PORT:-2398}
+      TELESRV_DEFAULT_COUNTRY_CODE: ${TELESRV_DEFAULT_COUNTRY_CODE:-CN}
+      TELESRV_PUBLIC_BASE_URL: ${TELESRV_PUBLIC_BASE_URL:?set the self-hosted public base URL in deploy/docker/.env}
+      TELESRV_PUBLIC_APP_SCHEME: ${TELESRV_PUBLIC_APP_SCHEME:-telesrv}
+      TELESRV_PUBLIC_WEB_BASE_URL: ${TELESRV_PUBLIC_WEB_BASE_URL:?set the self-hosted public web URL in deploy/docker/.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    expose:
+      - "2510"
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --grpc
+        - 127.0.0.1:2510,telesrv.egress.v3.EgressDeliveryService,TELESRV_EGRESS_DELIVERY_TOKEN
+        - --postgres-dsn-env
+        - TELESRV_POSTGRES_DSN
+        - --redis
+        - redis:6379,TELESRV_REDIS_PASSWORD,0
+        - --timeout
+        - 3s
+      interval: 5s
+      start_interval: 1s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - data
+      - control
+
+  sfu:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/sfu:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: sfu
+      args: *build-args
+    environment:
+      TELESRV_INSTANCE_ID: ${TELESRV_SFU_INSTANCE_ID:-sfu-1}
+      TELESRV_LOG_LEVEL: ${TELESRV_LOG_LEVEL:-info}
+      TELESRV_REDIS_ADDR: 127.0.0.1:${TELESRV_SFU_REDIS_HOST_PORT:-16379}
+      TELESRV_REDIS_PASSWORD: ${TELESRV_REDIS_PASSWORD:?set TELESRV_REDIS_PASSWORD in deploy/docker/.env}
+      TELESRV_GROUPCALL_CONTROL_URL: http://127.0.0.1:${TELESRV_GROUPCALL_CONTROL_HOST_PORT:-12420}
+      TELESRV_GROUPCALL_CONTROL_TOKEN: ${TELESRV_GROUPCALL_CONTROL_TOKEN:?set TELESRV_GROUPCALL_CONTROL_TOKEN in deploy/docker/.env}
+      TELESRV_SFU_CONTROL_TOKEN: ${TELESRV_SFU_CONTROL_TOKEN:?set TELESRV_SFU_CONTROL_TOKEN in deploy/docker/.env}
+      TELESRV_SFU_CONTROL_GRPC_URL: grpc://host.docker.internal:2450
+      TELESRV_ADVERTISE_IP: ${TELESRV_ADVERTISE_IP:?set TELESRV_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_SFU_UDP_PORT: ${TELESRV_SFU_UDP_PORT:-12399}
+      TELESRV_SFU_BIND_IP: ${TELESRV_SFU_BIND_IP:-127.0.0.1}
+      TELESRV_TURN_ENABLE: ${TELESRV_TURN_ENABLE:-true}
+      TELESRV_TURN_UDP_PORT: ${TELESRV_TURN_UDP_PORT:-12400}
+      TELESRV_TURN_BIND_IP: ${TELESRV_TURN_BIND_IP:-127.0.0.1}
+      TELESRV_TURN_ADVERTISE_IP: ${TELESRV_TURN_ADVERTISE_IP:?set the client-reachable TELESRV_TURN_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_TURN_SECRET: ${TELESRV_TURN_SECRET:?set TELESRV_TURN_SECRET in deploy/docker/.env}
+      TELESRV_TURN_RELAY_MIN_PORT: ${TELESRV_TURN_RELAY_MIN_PORT:-12500}
+      TELESRV_TURN_RELAY_MAX_PORT: ${TELESRV_TURN_RELAY_MAX_PORT:-12999}
+    depends_on:
+      redis:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+    # Media sockets bind the host directly. This avoids one Docker forwarding
+    # object per TURN relay port. Use compose.sfu-bridge-network.yaml only on
+    # hosts that cannot provide host networking.
+    network_mode: host
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --grpc
+        - 127.0.0.1:2450,telesrv.sfu.v1.SFUControlService,TELESRV_SFU_CONTROL_TOKEN
+        - --tcp
+        - 127.0.0.1:${TELESRV_GROUPCALL_CONTROL_HOST_PORT:-12420}
+        - --redis
+        - 127.0.0.1:${TELESRV_SFU_REDIS_HOST_PORT:-16379},TELESRV_REDIS_PASSWORD,0
+        - --timeout
+        - 3s
+      interval: 5s
+      start_interval: 1s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  edge:
+    <<: *app
+    image: ${TELESRV_IMAGE_PREFIX:-ghcr.io/iamxvbaba/gramsrv}/edge:${TELESRV_IMAGE_TAG:-v2}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: ${TELESRV_EDGE_BUILD_TARGET:-edge-test}
+      args: *build-args
+    environment:
+      TELESRV_INSTANCE_ID: ${TELESRV_EDGE_INSTANCE_ID:-edge-1}
+      TELESRV_LOG_LEVEL: ${TELESRV_LOG_LEVEL:-info}
+      TELESRV_REDIS_PASSWORD: ${TELESRV_REDIS_PASSWORD:?set TELESRV_REDIS_PASSWORD in deploy/docker/.env}
+      TELESRV_CORE_EXEC_TOKEN: ${TELESRV_CORE_EXEC_TOKEN:?set TELESRV_CORE_EXEC_TOKEN in deploy/docker/.env}
+      TELESRV_FILE_TOKEN: ${TELESRV_FILE_TOKEN:?set TELESRV_FILE_TOKEN in deploy/docker/.env}
+      TELESRV_EGRESS_DELIVERY_TOKEN: ${TELESRV_EGRESS_DELIVERY_TOKEN:?set TELESRV_EGRESS_DELIVERY_TOKEN in deploy/docker/.env}
+      TELESRV_ADVERTISE_IP: ${TELESRV_ADVERTISE_IP:?set TELESRV_ADVERTISE_IP in deploy/docker/.env}
+      TELESRV_ADVERTISE_PORT: ${TELESRV_ADVERTISE_PORT:-2398}
+      TELESRV_DEFAULT_COUNTRY_CODE: ${TELESRV_DEFAULT_COUNTRY_CODE:-CN}
+      TELESRV_PUBLIC_BASE_URL: ${TELESRV_PUBLIC_BASE_URL:?set the self-hosted public base URL in deploy/docker/.env}
+      TELESRV_PUBLIC_APP_SCHEME: ${TELESRV_PUBLIC_APP_SCHEME:-telesrv}
+      TELESRV_PUBLIC_WEB_BASE_URL: ${TELESRV_PUBLIC_WEB_BASE_URL:?set the self-hosted public web URL in deploy/docker/.env}
+      TELESRV_EDGE_STATE_DIR: /var/lib/telesrv-edge
+      TELESRV_RSA_IDENTITY_MODE: ${TELESRV_RSA_IDENTITY_MODE:-test}
+    depends_on:
+      redis:
+        condition: service_healthy
+      file:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+      egress:
+        condition: service_healthy
+    volumes:
+      - edge_state:/var/lib/telesrv-edge
+    ports:
+      - name: mtproto
+        target: 2398
+        published: "${TELESRV_EDGE_PORT:-2398}"
+        host_ip: ${TELESRV_PUBLIC_BIND_IP:-0.0.0.0}
+        protocol: tcp
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --tcp
+        - 127.0.0.1:2398
+        - --grpc
+        - core:2440,telesrv.coreexec.v1.CoreExecService,TELESRV_CORE_EXEC_TOKEN
+        - --grpc
+        - file:2520,telesrv.filedata.v1.FileDataService,TELESRV_FILE_TOKEN
+        - --grpc
+        - egress:2510,telesrv.egress.v3.EgressDeliveryService,TELESRV_EGRESS_DELIVERY_TOKEN
+        - --redis
+        - redis:6379,TELESRV_REDIS_PASSWORD,0
+        - --timeout
+        - 3s
+      interval: 10s
+      start_interval: 1s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - control
+      - outbound
+
+networks:
+  data:
+    internal: true
+  control:
+    internal: true
+  admin_host_access:
+  sfu_host_access:
+  outbound:
+
+volumes:
+  postgres_data:
+  redis_data:
+  file_data:
+  file_tmp:
+  core_state:
+  core_tmp:
+  edge_state:

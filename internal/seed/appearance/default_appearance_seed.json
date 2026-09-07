@@ -1,0 +1,5837 @@
+{
+ "source": "upstream appearance snapshot",
+ "exported_at": "2026-06-25T14:04:03Z",
+ "notes": {
+  "server": "official",
+  "themes_total": 0,
+  "chat_themes_total": 8,
+  "chat_theme_seed": "",
+  "wallpaper_documents_bucket": "documents",
+  "wallpaper_thumbs_bucket": "thumbs"
+ },
+ "chat_themes": [
+  {
+   "id": 5431620009950445886,
+   "access_hash": -5518302383155679890,
+   "slug": "xNY3PO2sJMrmvTQO",
+   "title": "🐥 Chat Theme",
+   "emoticon": "🐥",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 2732145,
+     "outbox_accent_color": 5025892,
+     "message_colors": [
+      15136213,
+      15791825
+     ],
+     "wallpaper": {
+      "id": 5784882925472317444,
+      "access_hash": 6373237550699652717,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "lp0prF8ISFAEAAAA_p385_CvG0w",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 7977128,
+       "second_background_color": 12834723,
+       "third_background_color": 14013845,
+       "fourth_background_color": 10866066,
+       "intensity": 42,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924650004621823334,
+       "access_hash": -6085381500874222887,
+       "date": 1623675210,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 51194,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924650004621823334.dat",
+       "sha256": "d4f22426a343881c41b6c2121ca8ce580c6fcb5a9a2d6a5a8447a3627b6a63e4",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 20067,
+         "path": "default_wallpapers/thumbs/m/5924650004621823334.dat",
+         "sha256": "ba7dc8d04fe5d76d185c34933544304891a7da9ee0f83cbbe5bcddda3a526586"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 5674079,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      6192443,
+      2128220
+     ],
+     "wallpaper": {
+      "id": 5784882925472317444,
+      "access_hash": 6373237550699652717,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "lp0prF8ISFAEAAAA_p385_CvG0w",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 2310725,
+       "second_background_color": 7174476,
+       "third_background_color": 2047025,
+       "fourth_background_color": 5541474,
+       "intensity": -58,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924650004621823334,
+       "access_hash": -6085381500874222887,
+       "date": 1623675210,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 51194,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924650004621823334.dat",
+       "sha256": "d4f22426a343881c41b6c2121ca8ce580c6fcb5a9a2d6a5a8447a3627b6a63e4",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 20067,
+         "path": "default_wallpapers/thumbs/m/5924650004621823334.dat",
+         "sha256": "ba7dc8d04fe5d76d185c34933544304891a7da9ee0f83cbbe5bcddda3a526586"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431729175134208256,
+   "access_hash": 7029015570293832486,
+   "slug": "A4lfIVsZKoXA8B2Q",
+   "title": "⛄️ Chat Theme",
+   "emoticon": "⛄",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 3317463,
+     "outbox_accent_color": 4367839,
+     "message_colors": [
+      15727612,
+      15333371
+     ],
+     "wallpaper": {
+      "id": 5785021373743104005,
+      "access_hash": -1374597781576365315,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "MIo6r0qGSFAFAAAAtL8TsDzNX60",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 8497648,
+       "second_background_color": 10343668,
+       "third_background_color": 11460562,
+       "fourth_background_color": 12304367,
+       "intensity": 41,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5782630687571969871,
+       "access_hash": 5918281820082603968,
+       "date": 1577635137,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 100992,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5782630687571969871.dat",
+       "sha256": "14ca7c554f48041b0b2a9f7f39034f9b255e5fcac966f07b4d5b80292f806836",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2436
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 148,
+         "h": 320,
+         "size": 27697,
+         "path": "default_wallpapers/thumbs/m/5782630687571969871.dat",
+         "sha256": "f1cd490a3d14ea50c80a3a7a279e350f1337b5a49eef4cd7fa612a9285fe0b92"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 5019631,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      2261394,
+      3305130
+     ],
+     "wallpaper": {
+      "id": 5785021373743104005,
+      "access_hash": -1374597781576365315,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "MIo6r0qGSFAFAAAAtL8TsDzNX60",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 5274253,
+       "second_background_color": 2109771,
+       "third_background_color": 2122357,
+       "fourth_background_color": 1582382,
+       "intensity": -57,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5782630687571969871,
+       "access_hash": 5918281820082603968,
+       "date": 1577635137,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 100992,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5782630687571969871.dat",
+       "sha256": "14ca7c554f48041b0b2a9f7f39034f9b255e5fcac966f07b4d5b80292f806836",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2436
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 148,
+         "h": 320,
+         "size": 27697,
+         "path": "default_wallpapers/thumbs/m/5782630687571969871.dat",
+         "sha256": "f1cd490a3d14ea50c80a3a7a279e350f1337b5a49eef4cd7fa612a9285fe0b92"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431859523096674543,
+   "access_hash": 3246772735563347235,
+   "slug": "gTeHBidjxfjMZI6q",
+   "title": "💎 Chat Theme",
+   "emoticon": "💎",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 10776791,
+     "outbox_accent_color": 5550056,
+     "message_colors": [
+      15136767
+     ],
+     "wallpaper": {
+      "id": 5951625624761139201,
+      "access_hash": 9167834799975181299,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "p-pXcflrmFIBAAAAvXYQk-mCwZU",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 9944811,
+       "second_background_color": 11659754,
+       "third_background_color": 13021679,
+       "fourth_background_color": 15710172,
+       "intensity": 50,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5926965009174236185,
+       "access_hash": 7051802135375127993,
+       "date": 1623675237,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 93075,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5926965009174236185.dat",
+       "sha256": "46a09e7c981b59cc7cfb2e6af49eff13c8766547f7fddebf92c95c6614dadd03",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 21763,
+         "path": "default_wallpapers/thumbs/m/5926965009174236185.dat",
+         "sha256": "3b5452b3686bac30db7fcfe6b7ac1d497d4a6a0c083b1a362a41836412bd55f3"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 8806573,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      2456746,
+      4869798
+     ],
+     "wallpaper": {
+      "id": 5951625624761139201,
+      "access_hash": 9167834799975181299,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "p-pXcflrmFIBAAAAvXYQk-mCwZU",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 2499660,
+       "second_background_color": 4286356,
+       "third_background_color": 1713474,
+       "fourth_background_color": 7295121,
+       "intensity": -58,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5926965009174236185,
+       "access_hash": 7051802135375127993,
+       "date": 1623675237,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 93075,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5926965009174236185.dat",
+       "sha256": "46a09e7c981b59cc7cfb2e6af49eff13c8766547f7fddebf92c95c6614dadd03",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 21763,
+         "path": "default_wallpapers/thumbs/m/5926965009174236185.dat",
+         "sha256": "3b5452b3686bac30db7fcfe6b7ac1d497d4a6a0c083b1a362a41836412bd55f3"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431737687759388684,
+   "access_hash": -4556517254481605588,
+   "slug": "Bv3x7OfgnH5vHB5s",
+   "title": "👨‍🏫 Chat Theme",
+   "emoticon": "👨‍🏫",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 2143654,
+     "outbox_accent_color": 3452533,
+     "message_colors": [
+      16055267
+     ],
+     "wallpaper": {
+      "id": 5785191424383254532,
+      "access_hash": 6428855567842967483,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "CJNyxPMgSVAEAAAAvW9sMwc51cw",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 13755285,
+       "second_background_color": 9556684,
+       "third_background_color": 7780582,
+       "fourth_background_color": 9557658,
+       "intensity": 50,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5785343895722264360,
+       "access_hash": -1349142750469150145,
+       "date": 1577635126,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 312605,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5785343895722264360.dat",
+       "sha256": "aac3993d60e148cf79cd5eba29ed4e83cf1d25c08e9d704f729de60398fb77cf",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2436
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 148,
+         "h": 320,
+         "size": 22921,
+         "path": "default_wallpapers/thumbs/m/5785343895722264360.dat",
+         "sha256": "5c474207324d26b5b42a31aee61f251f775b1bae89df6087db6255fe2c050adb"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 5083299,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      5732947,
+      3697773
+     ],
+     "wallpaper": {
+      "id": 5785191424383254532,
+      "access_hash": 6428855567842967483,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "CJNyxPMgSVAEAAAAvW9sMwc51cw",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 4223869,
+       "second_background_color": 1916771,
+       "third_background_color": 5797203,
+       "fourth_background_color": 1656130,
+       "intensity": -61,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5785343895722264360,
+       "access_hash": -1349142750469150145,
+       "date": 1577635126,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 312605,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5785343895722264360.dat",
+       "sha256": "aac3993d60e148cf79cd5eba29ed4e83cf1d25c08e9d704f729de60398fb77cf",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2436
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 148,
+         "h": 320,
+         "size": 22921,
+         "path": "default_wallpapers/thumbs/m/5785343895722264360.dat",
+         "sha256": "5c474207324d26b5b42a31aee61f251f775b1bae89df6087db6255fe2c050adb"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431380243401146580,
+   "access_hash": -3467763718429009737,
+   "slug": "bi2FDC2vpdwo68nV",
+   "title": "🌷 Chat Theme",
+   "emoticon": "🌷",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 13658513,
+     "outbox_accent_color": 13933382,
+     "message_colors": [
+      16773603
+     ],
+     "wallpaper": {
+      "id": 5785068300555780101,
+      "access_hash": -4335874468273472323,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "mP3FG_iwSFAFAAAA2AklJO978pA",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 15511182,
+       "second_background_color": 15254915,
+       "third_background_color": 15442113,
+       "fourth_background_color": 13087211,
+       "intensity": 50,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924664689115007842,
+       "access_hash": 1915920747143758593,
+       "date": 1623675212,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 51705,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924664689115007842.dat",
+       "sha256": "13fa80d11e6efff9cfab49499d51ce9eb44236d105a2333f85783b443ca3be2c",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 23099,
+         "path": "default_wallpapers/thumbs/m/5924664689115007842.dat",
+         "sha256": "e8e7ed0e76fc2250aca1c70b0bdd12fe5f7d0e697925acdde353b5d4251bd5af"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 12411780,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      12151869,
+      10044247
+     ],
+     "wallpaper": {
+      "id": 5785068300555780101,
+      "access_hash": -4335874468273472323,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "mP3FG_iwSFAFAAAA2AklJO978pA",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 8085921,
+       "second_background_color": 5254203,
+       "third_background_color": 10644559,
+       "fourth_background_color": 6042922,
+       "intensity": -58,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924664689115007842,
+       "access_hash": 1915920747143758593,
+       "date": 1623675212,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 51705,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924664689115007842.dat",
+       "sha256": "13fa80d11e6efff9cfab49499d51ce9eb44236d105a2333f85783b443ca3be2c",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 23099,
+         "path": "default_wallpapers/thumbs/m/5924664689115007842.dat",
+         "sha256": "e8e7ed0e76fc2250aca1c70b0bdd12fe5f7d0e697925acdde353b5d4251bd5af"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431868061491658948,
+   "access_hash": -2820428965927352199,
+   "slug": "RL9GYdQPmt4vLDlc",
+   "title": "💜 Chat Theme",
+   "emoticon": "💜",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 10776791,
+     "outbox_accent_color": 14248063,
+     "message_colors": [
+      16772078
+     ],
+     "wallpaper": {
+      "id": 5784961613568147459,
+      "access_hash": -6471405065895252908,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "O-wmAfBPSFADAAAA4zINVfD_bro",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 15308995,
+       "second_background_color": 15312086,
+       "third_background_color": 12034025,
+       "fourth_background_color": 15511668,
+       "intensity": 57,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924577350955046421,
+       "access_hash": -7660463103919126028,
+       "date": 1623675168,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 64363,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924577350955046421.dat",
+       "sha256": "e6685d07e85a212f8a5ee6cb2c570983291ffd404a937fc896e7608a5bf79387",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 21485,
+         "path": "default_wallpapers/thumbs/m/5924577350955046421.dat",
+         "sha256": "a55b07964ba24344e2288d6f4c245e9944ee011c0952a52b20769624266844a7"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 8676013,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      10834805,
+      6701434
+     ],
+     "wallpaper": {
+      "id": 5784961613568147459,
+      "access_hash": -6471405065895252908,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "O-wmAfBPSFADAAAA4zINVfD_bro",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 7230895,
+       "second_background_color": 3616344,
+       "third_background_color": 8671107,
+       "fourth_background_color": 5193521,
+       "intensity": -59,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5924577350955046421,
+       "access_hash": -7660463103919126028,
+       "date": 1623675168,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 64363,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5924577350955046421.dat",
+       "sha256": "e6685d07e85a212f8a5ee6cb2c570983291ffd404a937fc896e7608a5bf79387",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 21485,
+         "path": "default_wallpapers/thumbs/m/5924577350955046421.dat",
+         "sha256": "a55b07964ba24344e2288d6f4c245e9944ee011c0952a52b20769624266844a7"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431640436814905452,
+   "access_hash": 327550698806611630,
+   "slug": "nfCx0YBFOvxIX8D2",
+   "title": "🎄 Chat Theme",
+   "emoticon": "🎄",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 5612377,
+     "outbox_accent_color": 13539151,
+     "message_colors": [
+      16775136
+     ],
+     "wallpaper": {
+      "id": 6041986402319597570,
+      "access_hash": -8909137552203056986,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "-Xc-np9y2VMCAAAARKr0yNNPYW0",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 14721899,
+       "second_background_color": 15449723,
+       "third_background_color": 14718336,
+       "fourth_background_color": 16308350,
+       "intensity": 64,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5789856918507882132,
+       "access_hash": 8543131078280161834,
+       "date": 1577783794,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 104932,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5789856918507882132.dat",
+       "sha256": "639ffa8ecf6cdae952ac6888bdf6d2a2aad73fbaaa84ae5eb60e3e280dd3f44d",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 19643,
+         "path": "default_wallpapers/thumbs/m/5789856918507882132.dat",
+         "sha256": "cd5051b69177d544ea65a016d43907e34fef6fb9b2804c444c317353ee5ff84d"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 5866826,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      11371840,
+      11431746
+     ],
+     "wallpaper": {
+      "id": 6041986402319597570,
+      "access_hash": -8909137552203056986,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "-Xc-np9y2VMCAAAARKr0yNNPYW0",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 4155708,
+       "second_background_color": 4666134,
+       "third_background_color": 7495993,
+       "fourth_background_color": 2439462,
+       "intensity": -60,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5789856918507882132,
+       "access_hash": 8543131078280161834,
+       "date": 1577783794,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 104932,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5789856918507882132.dat",
+       "sha256": "639ffa8ecf6cdae952ac6888bdf6d2a2aad73fbaaa84ae5eb60e3e280dd3f44d",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1440,
+         "h": 2960
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 155,
+         "h": 320,
+         "size": 19643,
+         "path": "default_wallpapers/thumbs/m/5789856918507882132.dat",
+         "sha256": "cd5051b69177d544ea65a016d43907e34fef6fb9b2804c444c317353ee5ff84d"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 5431418395595636796,
+   "access_hash": 1870041133551048436,
+   "slug": "Nu0Fj2QDIwv7mg7O",
+   "title": "🎮 Chat Theme",
+   "emoticon": "🎮",
+   "default": false,
+   "settings": [
+    {
+     "base_theme": "classic",
+     "accent_color": 6916326,
+     "outbox_accent_color": 13410377,
+     "message_colors": [
+      16774101
+     ],
+     "wallpaper": {
+      "id": 5785007509588672513,
+      "access_hash": 8437532349638900210,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": false,
+      "slug": "kO4jyq55SFABAAAA0WEpcLfahXk",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 4247006,
+       "second_background_color": 11306733,
+       "third_background_color": 15303896,
+       "fourth_background_color": 14724429,
+       "intensity": 52,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5925009274341165314,
+       "access_hash": 4887297134680621548,
+       "date": 1623675173,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 78338,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5925009274341165314.dat",
+       "sha256": "508de399917ee40d301f5fee2ad47ee4a3e075dc46fda5747a761ab81c64394e",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2313
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 156,
+         "h": 320,
+         "size": 21843,
+         "path": "default_wallpapers/thumbs/m/5925009274341165314.dat",
+         "sha256": "1c92f7b25aa632bd9d75e99ba4d6de465b6af14b432f67b1bef4672b787f61fe"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "base_theme": "tinted",
+     "accent_color": 7370188,
+     "outbox_accent_color": 0,
+     "message_colors": [
+      11958341,
+      9848425,
+      6375839,
+      2981550
+     ],
+     "wallpaper": {
+      "id": 5785007509588672513,
+      "access_hash": 8437532349638900210,
+      "type": 0,
+      "default": false,
+      "pattern": true,
+      "dark": true,
+      "slug": "kO4jyq55SFABAAAA0WEpcLfahXk",
+      "settings": {
+       "id": 0,
+       "blur": false,
+       "motion": false,
+       "background_color": 4226963,
+       "second_background_color": 1326682,
+       "third_background_color": 6708886,
+       "fourth_background_color": 3878219,
+       "intensity": -58,
+       "rotation": 0
+      },
+      "document": {
+       "id": 5925009274341165314,
+       "access_hash": 4887297134680621548,
+       "date": 1623675173,
+       "mime_type": "application/x-tgwallpattern",
+       "size": 78338,
+       "dc_id": 4,
+       "path": "default_wallpapers/documents/5925009274341165314.dat",
+       "sha256": "508de399917ee40d301f5fee2ad47ee4a3e075dc46fda5747a761ab81c64394e",
+       "attributes": [
+        {
+         "kind": "image_size",
+         "w": 1125,
+         "h": 2313
+        },
+        {
+         "kind": "filename",
+         "file_name": "pattern.tgv"
+        }
+       ],
+       "thumbs": [
+        {
+         "kind": "size",
+         "type": "m",
+         "w": 156,
+         "h": 320,
+         "size": 21843,
+         "path": "default_wallpapers/thumbs/m/5925009274341165314.dat",
+         "sha256": "1c92f7b25aa632bd9d75e99ba4d6de465b6af14b432f67b1bef4672b787f61fe"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "wallpapers": [
+  {
+   "id": 5911321041770119175,
+   "access_hash": -2688071502994270847,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "aHrFIr08CFILAAAAkrBxhl8fIIs",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14409147,
+    "second_background_color": 7054727,
+    "third_background_color": 14014605,
+    "fourth_background_color": 8960132,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5911348641229966652,
+    "access_hash": -1930209429829551338,
+    "date": 1631642470,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 95615,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5911348641229966652.dat",
+    "sha256": "0d746c6e7c789d911b891b69b9400101195d6fb7af6da609e7f13994d37f20ea",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 18590,
+      "path": "default_wallpapers/thumbs/m/5911348641229966652.dat",
+      "sha256": "7d1de4346651358d67757dd6653329d004c53abf382f0f8c9179c8e2520bb301"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938378820338843661,
+   "access_hash": -2248763628030422934,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "5emFQzCUaVIGAAAA9SKr-_wL9BM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 4247006,
+    "second_background_color": 11306733,
+    "third_background_color": 15303896,
+    "fourth_background_color": 15717209,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5935909802554165816,
+    "access_hash": 5333956258143399216,
+    "date": 1640787934,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 79251,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5935909802554165816.dat",
+    "sha256": "8d604e4f1c068f0145e5cb1ad8cae5320aa4264fe29d35244e24736adcf3f3af",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 26958,
+      "path": "default_wallpapers/thumbs/m/5935909802554165816.dat",
+      "sha256": "ae9a188bef9b0553a1db9973dcd508592d165eca99c562339833247d1bdf8edb"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938313824598753287,
+   "access_hash": -8493643182239006494,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "XGwsGme_YFIJAAAAz8s_a_KjI2w",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 15377262,
+    "second_background_color": 15787142,
+    "third_background_color": 15900351,
+    "fourth_background_color": 15253614,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5936306687597087418,
+    "access_hash": 9198000018341170754,
+    "date": 1640787840,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 64706,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5936306687597087418.dat",
+    "sha256": "312003f138cdf5020f3fbfbe07e9d405219f1fcb66361605ca9aae1b02af450a",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1441,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 23799,
+      "path": "default_wallpapers/thumbs/m/5936306687597087418.dat",
+      "sha256": "35cee22f1f619fb7304842b9579e67ce652ef1321db3ada81f3b970e401dcb15"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5911475832391467014,
+   "access_hash": 5692462314232488857,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "wXkbd5fNCVIIAAAAEovnjGauGRs",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14346955,
+    "second_background_color": 10663167,
+    "third_background_color": 15518719,
+    "fourth_background_color": 12182271,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5911275789994690585,
+    "access_hash": -3865232324647444154,
+    "date": 1631642081,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 116856,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5911275789994690585.dat",
+    "sha256": "60fc4a57e0a6a40fcffd2c2af22d1dff13ea3548f3a07fc111905b080ecfc421",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27229,
+      "path": "default_wallpapers/thumbs/m/5911275789994690585.dat",
+      "sha256": "caaa7db0ffcb2e793a4873fcc7c75e2e1f1ec0c3006fc902642327201e6a1eb1"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5935870413409091596,
+   "access_hash": -7969814683699429140,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "qFcjc2DRYFIIAAAASlvGEqEL6cM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 8372873,
+    "second_background_color": 14996851,
+    "third_background_color": 11523703,
+    "fourth_background_color": 15777914,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5935983444063423035,
+    "access_hash": -1103248837830423175,
+    "date": 1640787967,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 69640,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5935983444063423035.dat",
+    "sha256": "ca43fe321447af2ec80f9fd4877a2c3d520e29871869e7ae5f0470dc2421508e",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 26745,
+      "path": "default_wallpapers/thumbs/m/5935983444063423035.dat",
+      "sha256": "8045087f94706cd3d25cb19c4e8bc31336412f4b048b2ba3f3217d151dc85eec"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5936023047956856843,
+   "access_hash": 2595292550379615670,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "y-kz9Pn5YFISAAAAKzTRUSqr5nE",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 11710958,
+    "second_background_color": 13936585,
+    "third_background_color": 7113940,
+    "fourth_background_color": 0,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5935747671833709896,
+    "access_hash": 2638583687556510258,
+    "date": 1640788016,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 103005,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5935747671833709896.dat",
+    "sha256": "afc4d414d8aa5ad3b15ff07913b521175ae0ffac7af4c5a215722b931f4f8b07",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 28957,
+      "path": "default_wallpapers/thumbs/m/5935747671833709896.dat",
+      "sha256": "f3cbf547c4077d3cc85936623cfbb45c0aeaab10a14e82973f385a5699dc61bb"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938464629490450443,
+   "access_hash": -4091120853939648078,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "DRaa0SbvYVIjAAAAWv3uHfEiYyI",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 10773748,
+    "second_background_color": 15576140,
+    "third_background_color": 15297711,
+    "fourth_background_color": 16244077,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938052961170098801,
+    "access_hash": -4124189991439125849,
+    "date": 1640788085,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 153409,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938052961170098801.dat",
+    "sha256": "49f561c9fcf166572827e48c3164f0749ca14461491794d772384213ceee24c0",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 29658,
+      "path": "default_wallpapers/thumbs/m/5938052961170098801.dat",
+      "sha256": "57cf7983a52fa51c626ba2b2bd60b0b453e2aa05ea93417af7b850bb3ef3a360"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5931598497202569229,
+   "access_hash": 7632322745452415286,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "CJNyxPMgSVAEAAAAvW9sMwc51cw",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14478226,
+    "second_background_color": 9429462,
+    "third_background_color": 6792178,
+    "fourth_background_color": 8771205,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5785343895722264360,
+    "access_hash": -1349142750469150145,
+    "date": 1577635126,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 312605,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5785343895722264360.dat",
+    "sha256": "aac3993d60e148cf79cd5eba29ed4e83cf1d25c08e9d704f729de60398fb77cf",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1125,
+      "h": 2436
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 148,
+      "h": 320,
+      "size": 22921,
+      "path": "default_wallpapers/thumbs/m/5785343895722264360.dat",
+      "sha256": "5c474207324d26b5b42a31aee61f251f775b1bae89df6087db6255fe2c050adb"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938093982402740236,
+   "access_hash": 3408558803277330093,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "DRaa0SbvYVIjAAAAWv3uHfEiYyI",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 16696470,
+    "second_background_color": 14511289,
+    "third_background_color": 9842623,
+    "fourth_background_color": 5200853,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938052961170098801,
+    "access_hash": -4124189991439125849,
+    "date": 1640788085,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 153409,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938052961170098801.dat",
+    "sha256": "49f561c9fcf166572827e48c3164f0749ca14461491794d772384213ceee24c0",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 29658,
+      "path": "default_wallpapers/thumbs/m/5938052961170098801.dat",
+      "sha256": "57cf7983a52fa51c626ba2b2bd60b0b453e2aa05ea93417af7b850bb3ef3a360"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5936246858702651395,
+   "access_hash": 8251351816501427870,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "4fz0g1CFYVIJAAAAbTViJ9W4tCw",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 7588607,
+    "second_background_color": 14022655,
+    "third_background_color": 16489189,
+    "fourth_background_color": 16505318,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5935950531729033666,
+    "access_hash": -6764473010899792693,
+    "date": 1640787228,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 84240,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5935950531729033666.dat",
+    "sha256": "2c57f3c16dca071c8d582139fe7ac9a04e67425ff4ea086ca11b6f21805cbb6d",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27443,
+      "path": "default_wallpapers/thumbs/m/5935950531729033666.dat",
+      "sha256": "9d8afa412c01da7b08946dfe4f984eec76512a00dc0efdee9e43e2a060650d24"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938306707837943827,
+   "access_hash": 8623705823865873892,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "8u8Y1ggMYVITAAAAluQYztxHp6s",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 9100274,
+    "second_background_color": 8949228,
+    "third_background_color": 14917610,
+    "fourth_background_color": 6790381,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938102022581521601,
+    "access_hash": 6636732675680556029,
+    "date": 1640787993,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 89269,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938102022581521601.dat",
+    "sha256": "f39613ee0de73fc3cd970afa66199f2322a2b83465fc75e373f003e875deb0ed",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27601,
+      "path": "default_wallpapers/thumbs/m/5938102022581521601.dat",
+      "sha256": "dc2111e533e8cf88f04b906be91a6ad0f289321270b6ec5c70f1ded4630fa0db"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5933728358599753732,
+   "access_hash": -189089280568048496,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "MIo6r0qGSFAFAAAAtL8TsDzNX60",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 11587051,
+    "second_background_color": 10465514,
+    "third_background_color": 12315349,
+    "fourth_background_color": 11723741,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5782630687571969871,
+    "access_hash": 5918281820082603968,
+    "date": 1577635137,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 100992,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5782630687571969871.dat",
+    "sha256": "14ca7c554f48041b0b2a9f7f39034f9b255e5fcac966f07b4d5b80292f806836",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1125,
+      "h": 2436
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 148,
+      "h": 320,
+      "size": 27697,
+      "path": "default_wallpapers/thumbs/m/5782630687571969871.dat",
+      "sha256": "f1cd490a3d14ea50c80a3a7a279e350f1337b5a49eef4cd7fa612a9285fe0b92"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938044233796550666,
+   "access_hash": -4155123133797581134,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "a6R_AF-8aVILAAAAXJ02JEsgvwM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 16761778,
+    "second_background_color": 14860543,
+    "third_background_color": 16770994,
+    "fourth_background_color": 0,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938359140798696416,
+    "access_hash": 5207849304615058380,
+    "date": 1640788043,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 68050,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938359140798696416.dat",
+    "sha256": "87b66a852f9994b1a328cbe01e15a0d7072b2e6d30145724312e4420d807a63d",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 25997,
+      "path": "default_wallpapers/thumbs/m/5938359140798696416.dat",
+      "sha256": "7d7779c938f3a0edd0532b76a19694cd31ce58db073fb2084df589145c9112ff"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5936015802347028490,
+   "access_hash": -2463593253645958003,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "BbkPzy4qaVINAAAAaB2Pd5Iy7Zg",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 9944811,
+    "second_background_color": 11659754,
+    "third_background_color": 13021679,
+    "fourth_background_color": 15710172,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938515597867354374,
+    "access_hash": -1100914462292174654,
+    "date": 1640788062,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 129956,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938515597867354374.dat",
+    "sha256": "c0ae697329c4c3c57c4b3c016f1f4ab8757be10217c19ab9b6c0873ac8e8d497",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 26373,
+      "path": "default_wallpapers/thumbs/m/5938515597867354374.dat",
+      "sha256": "af5d43f2ac554edfcd03ed085fcdcfd4dca5fc551597273d67bd5cbfcb2f06cd"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5935904068772823057,
+   "access_hash": -6028246774677063340,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "bJcwphEAYVINAAAA5jpWNRMqilA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14988010,
+    "second_background_color": 8615618,
+    "third_background_color": 15383001,
+    "fourth_background_color": 11834342,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938074474661284850,
+    "access_hash": -977544060216020041,
+    "date": 1640788123,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 227751,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938074474661284850.dat",
+    "sha256": "42bbce746ed5e073ceb80a01eafa332d0d5ac077662359bac0d851e24176a19b",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27263,
+      "path": "default_wallpapers/thumbs/m/5938074474661284850.dat",
+      "sha256": "ea93809e3fecaa61d77ed489441ce816582dea64c2db2c20af63af1aa503b670"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5935976911418163210,
+   "access_hash": -7726220695213426137,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": false,
+   "slug": "4fz0g1CFYVIJAAAAbTViJ9W4tCw",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 13738978,
+    "second_background_color": 15586708,
+    "third_background_color": 15049168,
+    "fourth_background_color": 15521939,
+    "intensity": 50,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5935950531729033666,
+    "access_hash": -6764473010899792693,
+    "date": 1640787228,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 84240,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5935950531729033666.dat",
+    "sha256": "2c57f3c16dca071c8d582139fe7ac9a04e67425ff4ea086ca11b6f21805cbb6d",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27443,
+      "path": "default_wallpapers/thumbs/m/5935950531729033666.dat",
+      "sha256": "9d8afa412c01da7b08946dfe4f984eec76512a00dc0efdee9e43e2a060650d24"
+     }
+    ]
+   }
+  },
+  {
+   "id": 3388302328334385153,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14409147,
+    "second_background_color": 7054727,
+    "third_background_color": 14014605,
+    "fourth_background_color": 8960132,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385154,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 4430591,
+    "second_background_color": 16697475,
+    "third_background_color": 16706764,
+    "fourth_background_color": 12505855,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385155,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 9399223,
+    "second_background_color": 13920675,
+    "third_background_color": 16367995,
+    "fourth_background_color": 16506533,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385156,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 16703019,
+    "second_background_color": 3121110,
+    "third_background_color": 9661932,
+    "fourth_background_color": 16681655,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385157,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14873550,
+    "second_background_color": 11133125,
+    "third_background_color": 14216397,
+    "fourth_background_color": 10406787,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385158,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 15124338,
+    "second_background_color": 15394762,
+    "third_background_color": 15238186,
+    "fourth_background_color": 9610078,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 5906963690074144769,
+   "access_hash": 6307177556558034616,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "sp-xMi7A-VEBAAAABRn6rGsUKFs",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5042099534566523019,
+    "access_hash": 6346778478953150322,
+    "date": 1547647530,
+    "mime_type": "image/jpeg",
+    "size": 1683976,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5042099534566523019.dat",
+    "sha256": "dec22303be724bb1e35884e3c4c4cb71340f6f465c3723568473f972ba14dcd5",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_2.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 19710,
+      "path": "default_wallpapers/thumbs/m/5042099534566523019.dat",
+      "sha256": "fffa5ddc8613e85a619f2a4366bbe591c406ca8cd3ba699a52e03a1a4e425019"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906980552115748865,
+   "access_hash": 7075764375678803071,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "CiwwsoTP-VEBAAAAmDYEizr71BQ",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695163,
+    "access_hash": 2179539804932815256,
+    "date": 1547647544,
+    "mime_type": "image/jpeg",
+    "size": 751789,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695163.dat",
+    "sha256": "3cc2cd55f217e7de78ebc98fbf1ef2cc4a2413a23452d6d924245d5d38f9f809",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_6.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 14865,
+      "path": "default_wallpapers/thumbs/m/5044527775931695163.dat",
+      "sha256": "c35ccc975d6fb1d0de7e55833fc7682a39039ecd420fc87d621fef23845bdb91"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906617365386231809,
+   "access_hash": -1477962611863535366,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "wtsScjOF-FEBAAAAS0QwhEvmk64",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695182,
+    "access_hash": 4533227118990297232,
+    "date": 1547647665,
+    "mime_type": "image/jpeg",
+    "size": 1034175,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695182.dat",
+    "sha256": "2b2b75821430b8305793fb953466ab693e09573151b292bfd5d6cd50ec02b16b",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_29.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 15643,
+      "path": "default_wallpapers/thumbs/m/5044527775931695182.dat",
+      "sha256": "1f0bd0f5b0f95bfe14fac6f4da62dd7ca1dd4253017e385a3e047bd8234c02de"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5909098808511299585,
+   "access_hash": -7216078663825665324,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "Br6nNA9WAVIBAAAAe6AHvL7eOMM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695166,
+    "access_hash": -3115126729592645754,
+    "date": 1547647567,
+    "mime_type": "image/jpeg",
+    "size": 822953,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695166.dat",
+    "sha256": "c8842545f12139e389f21a52c2876dddae8b7d351de7d1861696c9d6d2c9c88c",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_10.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 7005,
+      "path": "default_wallpapers/thumbs/m/5044527775931695166.dat",
+      "sha256": "e37d32cc3343089423ebba98edf13013915b113fa2a6929f0a73d66f42d41a88"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906862337435893761,
+   "access_hash": -115765806677602819,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "7wznfgBk-VEBAAAAncxYg0vokZY",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695159,
+    "access_hash": 5494410093174499136,
+    "date": 1547647524,
+    "mime_type": "image/jpeg",
+    "size": 299202,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695159.dat",
+    "sha256": "be7baef46cfd43022ead056f680ff93a2aee1731da9cfac0b29bc93e22c44224",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_1.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 4260,
+      "path": "default_wallpapers/thumbs/m/5044527775931695159.dat",
+      "sha256": "34000547567bced6ac4c5ad6a94718ad107474e148e9c5e58fc497f530380c01"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906605219218718721,
+   "access_hash": -421643281251802232,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "G87eMCd6-FEBAAAApSBi5CBqx0c",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695169,
+    "access_hash": -3946358003188961287,
+    "date": 1547647584,
+    "mime_type": "image/jpeg",
+    "size": 880035,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695169.dat",
+    "sha256": "96a8ae61eb78b7f7937a5b6a2924471c5571acf46fb15d7d2da0fd7129e38703",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_13.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 13850,
+      "path": "default_wallpapers/thumbs/m/5044527775931695169.dat",
+      "sha256": "c48d33f0db8e35dfc917ebe8e2001e513386c5a3e3d279c2739d16395d2fc8fb"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5909175138670084097,
+   "access_hash": 4662070867142164276,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "MzLRSHubAVIBAAAAqKgYQTObnhw",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695162,
+    "access_hash": 7315334016384115895,
+    "date": 1547647540,
+    "mime_type": "image/jpeg",
+    "size": 1369353,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695162.dat",
+    "sha256": "af63d80025cc44f6f053c6b5255652058ef793f9c72bd3699816ae2741e63da8",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_5.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 20464,
+      "path": "default_wallpapers/thumbs/m/5044527775931695162.dat",
+      "sha256": "dc26c520a8d1b4fed7e679640825a5379fe533d7db47caa85fe80db5fc8133ed"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908854944563200001,
+   "access_hash": -952088141090634256,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "MiE64ER4AFIBAAAAHQZRZyDCfu0",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695165,
+    "access_hash": 6033022357441024734,
+    "date": 1547647561,
+    "mime_type": "image/jpeg",
+    "size": 459884,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695165.dat",
+    "sha256": "556afc1e91226faf4233129385ab67fc826be49fa81bee5e85c67eaf847e2e9e",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_9.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 16210,
+      "path": "default_wallpapers/thumbs/m/5044527775931695165.dat",
+      "sha256": "ec3ec7010f9ec0a71ad362afae7d5765eb3085ef17944782d0046601c88add6a"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908757629194207233,
+   "access_hash": -5235315307632943189,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "76IgaMIfAFIBAAAAXDx-2oiEJIM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5042099534566523021,
+    "access_hash": -1644594290434818563,
+    "date": 1547647556,
+    "mime_type": "image/jpeg",
+    "size": 736915,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5042099534566523021.dat",
+    "sha256": "143e2d4b41d32ae7e29c94159e32211c1471be38de5748cec6d8ceccf997677f",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_8.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 8119,
+      "path": "default_wallpapers/thumbs/m/5042099534566523021.dat",
+      "sha256": "ffe0654471a10c2b05aead75e7019c64110ab4ca315a4acb507fc35d1575e8b5"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906796650206068737,
+   "access_hash": -8074771640988720146,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "0k-hpUIo-VEBAAAAN_yVCPEg9mI",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5042099534566523022,
+    "access_hash": 8311787528024794147,
+    "date": 1547647599,
+    "mime_type": "image/jpeg",
+    "size": 402156,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5042099534566523022.dat",
+    "sha256": "c5627c588de7f6b0295988c772e2e7efc09c6248edb57e817bdd78c95fe03daf",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_16.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 6803,
+      "path": "default_wallpapers/thumbs/m/5042099534566523022.dat",
+      "sha256": "b29901d35c7a8c9c2f210fb0494a52ccc1b8680979ba3d9b5e831bb775ce6edc"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906572457208184833,
+   "access_hash": 677917931819878915,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "X76DK1tc-FEBAAAAxL3Wn2tkGOE",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695174,
+    "access_hash": -109650940417309951,
+    "date": 1547647612,
+    "mime_type": "image/jpeg",
+    "size": 662364,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695174.dat",
+    "sha256": "3fec6beb13c6959abcf23851cf54f107c1fa9220ca84d9d6702de1cd424acaf9",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_19.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 10460,
+      "path": "default_wallpapers/thumbs/m/5044527775931695174.dat",
+      "sha256": "cef557c71edf3ef28517a8039ca357d400cec84434d3112ae02dfb1b0eb40d83"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906660078835990529,
+   "access_hash": -7028595783543356197,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "EhCMFgys-FEBAAAA04qJyrs1G6M",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695175,
+    "access_hash": 6331306202479670213,
+    "date": 1547647617,
+    "mime_type": "image/jpeg",
+    "size": 869465,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695175.dat",
+    "sha256": "bbc8bed48490521862097edb878ca5f3ca3f43b97d5c4dc5940d6d3c92a19193",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_20.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 7858,
+      "path": "default_wallpapers/thumbs/m/5044527775931695175.dat",
+      "sha256": "8f973c83b82d983f3f11e519f56e457cfc6ac602bf56f8f36bbc57349daae5bc"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908878811696463873,
+   "access_hash": 1024493119738104593,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "QYRXjvmNAFIBAAAAeuJm6ng1wZo",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695176,
+    "access_hash": -681013058644387109,
+    "date": 1547647630,
+    "mime_type": "image/jpeg",
+    "size": 624150,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695176.dat",
+    "sha256": "0b7e36afe07e03adfc740cc259ee4a6bdbb137e3e4dc37edb0fb0f49bddab540",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_22.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 5782,
+      "path": "default_wallpapers/thumbs/m/5044527775931695176.dat",
+      "sha256": "f8177f278e643a556212b84399fdef2601125ed679a8ed47f9dc985c4a0d218c"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908888127480528897,
+   "access_hash": 6970896434205883168,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "5LkIrHKWAFIBAAAAM0Fy4n1W65E",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695173,
+    "access_hash": -3214675526652754374,
+    "date": 1547647606,
+    "mime_type": "image/jpeg",
+    "size": 332375,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695173.dat",
+    "sha256": "913073b3195474d50f17cce1da15193432fade88c60d193905604bb68bed6de2",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_18.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 4659,
+      "path": "default_wallpapers/thumbs/m/5044527775931695173.dat",
+      "sha256": "eb392106b38d4e852c5a8abb1c3258a823915efe11c32e3119661e62f0de3d49"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906510446470365185,
+   "access_hash": 1031700063035428973,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "ExhVI_Uj-FEBAAAA9CC2f4neVfc",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5042099534566523023,
+    "access_hash": 2542507906135149955,
+    "date": 1547647623,
+    "mime_type": "image/jpeg",
+    "size": 645339,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5042099534566523023.dat",
+    "sha256": "5fe06a988fdd31060164514a712a30032e2df82b3effa57470435322afd46316",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_21.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 5481,
+      "path": "default_wallpapers/thumbs/m/5042099534566523023.dat",
+      "sha256": "c11d88815a3e77dba4afc5cc441513d6b97f190d1147f97e51a917e5f5c07747"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5909134061602865153,
+   "access_hash": 3110071787701744670,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "05yxsh92AVIBAAAAnlGKl96c0OA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695172,
+    "access_hash": 7971796553911658246,
+    "date": 1547647602,
+    "mime_type": "image/jpeg",
+    "size": 500225,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695172.dat",
+    "sha256": "6f65d80232512ff055d4bcb28fdd2297cfaaba687774547ffd6e188531fc094c",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_17.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 6641,
+      "path": "default_wallpapers/thumbs/m/5044527775931695172.dat",
+      "sha256": "48039489d37653b217762a99fe2e1fa9f6d4563345909e9140c66839b5041f74"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5907025052271902721,
+   "access_hash": 7740473653469511359,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "c87UFf33-VEBAAAAbg2Ohm6CkiE",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695183,
+    "access_hash": 3677821063729684702,
+    "date": 1547647672,
+    "mime_type": "image/jpeg",
+    "size": 1312284,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695183.dat",
+    "sha256": "63c8e21572b40e8833b22ede67814e9cd13ec7103a2d89a08ab6a77e2c799d2e",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_30.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 17710,
+      "path": "default_wallpapers/thumbs/m/5044527775931695183.dat",
+      "sha256": "9b0c4f3b967b325af99fbab02b5a6c7f2432b5cdd54e9957b4fe67175eab0e49"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906660856225071105,
+   "access_hash": 6669894076167893009,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "pATdUMGs-FEBAAAA0r1Q5aJbg2w",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695181,
+    "access_hash": -5012333834865047847,
+    "date": 1547647657,
+    "mime_type": "image/jpeg",
+    "size": 296142,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695181.dat",
+    "sha256": "8fc74f635218692cc38a9824b8a413bcd77dc9e00b0d79afd6fb180a6f08f008",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_28.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 7894,
+      "path": "default_wallpapers/thumbs/m/5044527775931695181.dat",
+      "sha256": "b0e091fe6894c4899b017fbe1ea917921b7c12cd4cadc545c8111e73acfb564d"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906729176269848577,
+   "access_hash": 7957379044104307977,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "4MDgxOTq-FEBAAAAiALXfrEitA4",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5042099534566523024,
+    "access_hash": -1112276296641392999,
+    "date": 1547647640,
+    "mime_type": "image/jpeg",
+    "size": 1217537,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5042099534566523024.dat",
+    "sha256": "9f3d2966116d57845a1cdaff3e9ab38deae3ca6753595ff83fad108f9bf16089",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_24.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 13717,
+      "path": "default_wallpapers/thumbs/m/5042099534566523024.dat",
+      "sha256": "0a4942ccfb003cd7f5a179d1cdf6ea4363e4d4fb77d4a2ba6ce793080cae65b0"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906839586994126849,
+   "access_hash": 4001527922462946535,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "VYTeBE9P-VEBAAAAbFWkh0TrPw4",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695164,
+    "access_hash": -2363827856125297497,
+    "date": 1547647549,
+    "mime_type": "image/jpeg",
+    "size": 766685,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695164.dat",
+    "sha256": "1411a4c6a755d594451184dd6fd58d5f7664a472fb48108724c38b583ab784fd",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_7.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 13713,
+      "path": "default_wallpapers/thumbs/m/5044527775931695164.dat",
+      "sha256": "fe7dd7fda2dd550cb82b399a899e62a50d0a9e48225567732ff8a8ad1f16db39"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5909153199977136129,
+   "access_hash": -2918381668755838638,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "maIM-YeHAVIBAAAAkvnFt2M-tiQ",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695167,
+    "access_hash": 4413147977800198350,
+    "date": 1547647574,
+    "mime_type": "image/jpeg",
+    "size": 894302,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695167.dat",
+    "sha256": "b680f91aa63854cab360010818dad8ba73113933cb9cfa78b4908bd03cb7080a",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_11.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 12238,
+      "path": "default_wallpapers/thumbs/m/5044527775931695167.dat",
+      "sha256": "31c09a2380597c1d318b205f6f1a7c2335a9b677106fd841e9421cbaa3ff95f5"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906560238026227713,
+   "access_hash": 9035244907891895455,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "MQFtCj5R-FEBAAAAxZqkAmtgSA8",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695161,
+    "access_hash": -4270067470471168753,
+    "date": 1547647536,
+    "mime_type": "image/jpeg",
+    "size": 530254,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695161.dat",
+    "sha256": "989eb7d0dafc8d66cb467e3d2ea8fa863496a7765ff2d66eb7fca67258773e73",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_4.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 7115,
+      "path": "default_wallpapers/thumbs/m/5044527775931695161.dat",
+      "sha256": "57faef833f0988d738bd5e78262b842092cb752e773c38857823ecabe081f68f"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906790705971331073,
+   "access_hash": 7086041727214022883,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "Ynp3Jtoi-VEBAAAASU1vdCYmVto",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695170,
+    "access_hash": 5170774567897136344,
+    "date": 1547647590,
+    "mime_type": "image/jpeg",
+    "size": 1298518,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695170.dat",
+    "sha256": "c31a6054b1750b536e92c94015dc649d9d29f849ead77739ebe2effb6061c2ed",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_14.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 10020,
+      "path": "default_wallpapers/thumbs/m/5044527775931695170.dat",
+      "sha256": "38f80e36909fe00e7b98e863cd4919105e141e76e68b00ee210f55f387925b44"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906587107341631489,
+   "access_hash": 2588100083382753451,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "9F4oTa5p-FEBAAAA9A2ENoEIiHA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695177,
+    "access_hash": -8049085184258763830,
+    "date": 1547647635,
+    "mime_type": "image/jpeg",
+    "size": 733630,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695177.dat",
+    "sha256": "3104cfb44cba76ca7e3ddcbb66a95418b1489dbf5fbbaef2e54301162a1fec61",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_23.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 9283,
+      "path": "default_wallpapers/thumbs/m/5044527775931695177.dat",
+      "sha256": "875325afe19139fa1675fcec19076a54f4de96e139eaa116e94fba4c4b079089"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906932109179617281,
+   "access_hash": -9018863911906668113,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "zketRHWj-VEBAAAA8kqzFtu3ZBg",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695179,
+    "access_hash": -2606153386373558526,
+    "date": 1547647649,
+    "mime_type": "image/jpeg",
+    "size": 844864,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695179.dat",
+    "sha256": "dbead0f14e133db9536fa11541453b68103555c0322ccb0468a746826e0937f9",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_26.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 10519,
+      "path": "default_wallpapers/thumbs/m/5044527775931695179.dat",
+      "sha256": "3117bfcb9d6e557c443f6a273991d1b03d40a75b334e80255e613b73c55435c5"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908956086748053505,
+   "access_hash": 1604750920666690454,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "JzHJF0HUAFIBAAAAYqIF-a2x4DY",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695160,
+    "access_hash": -1293198148036480010,
+    "date": 1547647531,
+    "mime_type": "image/jpeg",
+    "size": 169426,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695160.dat",
+    "sha256": "de192db9400bf7ba41c6df813b4e112c55e1f6b6592e783fd9761e8762cc31b9",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_3.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 2469,
+      "path": "default_wallpapers/thumbs/m/5044527775931695160.dat",
+      "sha256": "c634839577d258b8b2ac02f6a8d3878a05b416268e800a91e51e3d4c1d785ff2"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5947530738516623361,
+   "access_hash": -1323498699799167915,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "Qe9IiLLfiVIBAAAAn_BDUKSYaCs",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5082456438849142866,
+    "access_hash": 1887178836834096349,
+    "date": 1548791769,
+    "mime_type": "image/jpeg",
+    "size": 126661,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5082456438849142866.dat",
+    "sha256": "cadd6d28f39205e53b943335f539126ba6e8570d5fedf5a0904ae963b8be2583",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 640,
+      "h": 1136
+     },
+     {
+      "kind": "filename",
+      "file_name": "105.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 180,
+      "h": 320,
+      "size": 6164,
+      "path": "default_wallpapers/thumbs/m/5082456438849142866.dat",
+      "sha256": "9f9518d53b2d74a1002d3aec07ad9b93644567004d52d7098f78f66033daad6e"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5947424468140818433,
+   "access_hash": 8054422047755582033,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "FJIYygt_iVIBAAAA8tzV8Ju0QvM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458315,
+    "access_hash": -7609954468143954815,
+    "date": 1548791920,
+    "mime_type": "image/jpeg",
+    "size": 463393,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458315.dat",
+    "sha256": "9aeaa09f4280f6dfbe3142d4f117447553e1c5bcf4dc7d8cea23b7b78892fafd",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_33.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 11590,
+      "path": "default_wallpapers/thumbs/m/5080412794625458315.dat",
+      "sha256": "133669098b5eea92384a99a2a7674d56c3c04552ab60afb613de3a02beed5bbc"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5945255028620001281,
+   "access_hash": -6340952200004482343,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "7F-AWfPJgVIBAAAA5NdzN7l5zWM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458316,
+    "access_hash": -1055626910199919769,
+    "date": 1548791948,
+    "mime_type": "image/jpeg",
+    "size": 107363,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458316.dat",
+    "sha256": "d5c90d54f2404e3031fb7ca0eb2f57edcc2959cfee264f2a220bb57f63dc94aa",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 640,
+      "h": 1136
+     },
+     {
+      "kind": "filename",
+      "file_name": "104.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 180,
+      "h": 320,
+      "size": 4582,
+      "path": "default_wallpapers/thumbs/m/5080412794625458316.dat",
+      "sha256": "4111fc7f4f5a8de2867dc4914659eb0c17555f1cb3fd668dda763baa8b4f06fe"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5947340690508742657,
+   "access_hash": 3528794991276120255,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "vG0wx9kyiVIBAAAAkhlpL_sW9dg",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458317,
+    "access_hash": 4958528404570961573,
+    "date": 1548791970,
+    "mime_type": "image/jpeg",
+    "size": 85361,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458317.dat",
+    "sha256": "5b82af8daef53736fffaf191ead6247767d1733b6c2816ea7202c853c62e8238",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1080,
+      "h": 1920
+     },
+     {
+      "kind": "filename",
+      "file_name": "13.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 180,
+      "h": 320,
+      "size": 6677,
+      "path": "default_wallpapers/thumbs/m/5080412794625458317.dat",
+      "sha256": "8caa46d5e3503a6a45c0276068a606c2d2e05987c10e30fc44935832ad430f7b"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5945087215657811969,
+   "access_hash": -3527358213864975963,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "SJTGO1MxgVIBAAAA-AChMYdDH58",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458318,
+    "access_hash": 2369452392113531512,
+    "date": 1548791979,
+    "mime_type": "image/jpeg",
+    "size": 110374,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458318.dat",
+    "sha256": "9b3b054cff5f57cd192fc24135cf7726ce3ca430b3ed5ca1b2667f55af881641",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1080,
+      "h": 1920
+     },
+     {
+      "kind": "filename",
+      "file_name": "21.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 180,
+      "h": 320,
+      "size": 2667,
+      "path": "default_wallpapers/thumbs/m/5080412794625458318.dat",
+      "sha256": "dab86229bf89f0e138b048c080784603d3652b7e98c4e221fe21c5a5fd21f909"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5776065172930035719,
+   "access_hash": -7362949919804434019,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "o2q2Nay0KFAHAAAAXRLnCthYEFk",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5199407101239101638,
+    "access_hash": -5653740151686081832,
+    "date": 1602591923,
+    "mime_type": "image/jpeg",
+    "size": 159666,
+    "dc_id": 2,
+    "path": "default_wallpapers/documents/5199407101239101638.dat",
+    "sha256": "99c5a36af2464fb5cc22968b3066bca58e9e17994b4125903ebd04732f8384a7",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "bg.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 3718,
+      "path": "default_wallpapers/thumbs/m/5199407101239101638.dat",
+      "sha256": "8d8a9ec5103204a9c17e8c8b8d96ca6103657248713b61f2e5c53a761e31220a"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5778236420632084488,
+   "access_hash": 949223703553116467,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "ByxGo2lrMFAIAAAAmkJxZabh8eM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5199690504656128578,
+    "access_hash": 5645681656852275705,
+    "date": 1602592307,
+    "mime_type": "image/jpeg",
+    "size": 345121,
+    "dc_id": 2,
+    "path": "default_wallpapers/documents/5199690504656128578.dat",
+    "sha256": "a8cc7d1dad601dee253ab0a907c709276eb0b4e8e4b5d6ae4960422506507ea9",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "background telesrv 003.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 6137,
+      "path": "default_wallpapers/thumbs/m/5199690504656128578.dat",
+      "sha256": "8433ca27db5c87480f3d30f5aaa81036e2a36b7462648136efe34754db05b0ac"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5778594457695813635,
+   "access_hash": 3115290389581146509,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "xs56jwuxMVADAAAAat-PqhNBaxA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5404435181954140582,
+    "access_hash": 5935110866834074163,
+    "date": 1600092959,
+    "mime_type": "image/jpeg",
+    "size": 656301,
+    "dc_id": 2,
+    "path": "default_wallpapers/documents/5404435181954140582.dat",
+    "sha256": "651d53e017e16416135cbddf59da7143d256ceb79294fc61701d239c3ba44aa6",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "IMG_0426.JPG"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 4461,
+      "path": "default_wallpapers/thumbs/m/5404435181954140582.dat",
+      "sha256": "134569abb5786aa2f9e93c92aa34dd6a0057b7c993db706cf1b9f03d2076bd1c"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5915807066391314436,
+   "access_hash": 8170105533609711628,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": false,
+   "slug": "qeZWES8rGVIEAAAARfWlK1lnfiI",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5051205286140838230,
+    "access_hash": -5205710826537592622,
+    "date": 1623413088,
+    "mime_type": "image/jpeg",
+    "size": 125151,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5051205286140838230.dat",
+    "sha256": "56b3d0f81f9535b8fa8d6f4d45c006d4c3db04d35eb91ddc0f2a522288f3fadf",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1280,
+      "h": 2002
+     },
+     {
+      "kind": "filename",
+      "file_name": "background_hd (1).jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 205,
+      "h": 320,
+      "size": 3350,
+      "path": "default_wallpapers/thumbs/m/5051205286140838230.dat",
+      "sha256": "d338e5bfed22be80f5083aa81a7257398859203ca8402c3bae3be228f619085e"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5911062875580923918,
+   "access_hash": -4613741187406712612,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "FOks2P6KCFIMAAAAyFz5S74pfKo",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 9100274,
+    "second_background_color": 8949228,
+    "third_background_color": 14917610,
+    "fourth_background_color": 6790381,
+    "intensity": -30,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5911510226489576101,
+    "access_hash": 6263020380199454416,
+    "date": 1631642212,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 107339,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5911510226489576101.dat",
+    "sha256": "dd04df5877fdd54c53009a1b480f4b36b7975b12cc72dfc18edf08c603257bab",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 31153,
+      "path": "default_wallpapers/thumbs/m/5911510226489576101.dat",
+      "sha256": "e181357ad799b1069c9492a0b5683b0c40a4f108d237038651ee3113133af84c"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5933808000178323465,
+   "access_hash": -601550650252728109,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "CJNyxPMgSVAEAAAAvW9sMwc51cw",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 8364929,
+    "second_background_color": 16774597,
+    "third_background_color": 3370837,
+    "fourth_background_color": 16507773,
+    "intensity": -40,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5785343895722264360,
+    "access_hash": -1349142750469150145,
+    "date": 1577635126,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 312605,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5785343895722264360.dat",
+    "sha256": "aac3993d60e148cf79cd5eba29ed4e83cf1d25c08e9d704f729de60398fb77cf",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1125,
+      "h": 2436
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 148,
+      "h": 320,
+      "size": 22921,
+      "path": "default_wallpapers/thumbs/m/5785343895722264360.dat",
+      "sha256": "5c474207324d26b5b42a31aee61f251f775b1bae89df6087db6255fe2c050adb"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938255172525359124,
+   "access_hash": -7312806799754817281,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "DRaa0SbvYVIjAAAAWv3uHfEiYyI",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 16696470,
+    "second_background_color": 14511289,
+    "third_background_color": 9842623,
+    "fourth_background_color": 5200853,
+    "intensity": -45,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938052961170098801,
+    "access_hash": -4124189991439125849,
+    "date": 1640788085,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 153409,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938052961170098801.dat",
+    "sha256": "49f561c9fcf166572827e48c3164f0749ca14461491794d772384213ceee24c0",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 29658,
+      "path": "default_wallpapers/thumbs/m/5938052961170098801.dat",
+      "sha256": "57cf7983a52fa51c626ba2b2bd60b0b453e2aa05ea93417af7b850bb3ef3a360"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5936133776508715013,
+   "access_hash": -2074011678611450119,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "bJcwphEAYVINAAAA5jpWNRMqilA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 16446674,
+    "second_background_color": 13543016,
+    "third_background_color": 14529901,
+    "fourth_background_color": 12231009,
+    "intensity": -40,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938074474661284850,
+    "access_hash": -977544060216020041,
+    "date": 1640788123,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 227751,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938074474661284850.dat",
+    "sha256": "42bbce746ed5e073ceb80a01eafa332d0d5ac077662359bac0d851e24176a19b",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27263,
+      "path": "default_wallpapers/thumbs/m/5938074474661284850.dat",
+      "sha256": "ea93809e3fecaa61d77ed489441ce816582dea64c2db2c20af63af1aa503b670"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938145586434801689,
+   "access_hash": 6450978822767769585,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "8u8Y1ggMYVITAAAAluQYztxHp6s",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 2621187,
+    "second_background_color": 16527871,
+    "third_background_color": 65279,
+    "fourth_background_color": 16776192,
+    "intensity": -35,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938102022581521601,
+    "access_hash": 6636732675680556029,
+    "date": 1640787993,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 89269,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938102022581521601.dat",
+    "sha256": "f39613ee0de73fc3cd970afa66199f2322a2b83465fc75e373f003e875deb0ed",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 27601,
+      "path": "default_wallpapers/thumbs/m/5938102022581521601.dat",
+      "sha256": "dc2111e533e8cf88f04b906be91a6ad0f289321270b6ec5c70f1ded4630fa0db"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5931428472332222485,
+   "access_hash": 3164770212021344150,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "MIo6r0qGSFAFAAAAtL8TsDzNX60",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 10804223,
+    "second_background_color": 40925,
+    "third_background_color": 5405661,
+    "fourth_background_color": 0,
+    "intensity": -35,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5782630687571969871,
+    "access_hash": 5918281820082603968,
+    "date": 1577635137,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 100992,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5782630687571969871.dat",
+    "sha256": "14ca7c554f48041b0b2a9f7f39034f9b255e5fcac966f07b4d5b80292f806836",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1125,
+      "h": 2436
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 148,
+      "h": 320,
+      "size": 27697,
+      "path": "default_wallpapers/thumbs/m/5782630687571969871.dat",
+      "sha256": "f1cd490a3d14ea50c80a3a7a279e350f1337b5a49eef4cd7fa612a9285fe0b92"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5935974716689874953,
+   "access_hash": 3372853595062823910,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "T7LjEHVuYVIFAAAAS7NH4xQl6jY",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 15377262,
+    "second_background_color": 15787142,
+    "third_background_color": 15900351,
+    "fourth_background_color": 15253614,
+    "intensity": -30,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938195764537723401,
+    "access_hash": -3534919302544114908,
+    "date": 1640788247,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 109753,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938195764537723401.dat",
+    "sha256": "37dc773b072b5985055d2b1276c6aeeb1b26cd8a44298e55bf41405523e6482c",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 53566,
+      "path": "default_wallpapers/thumbs/m/5938195764537723401.dat",
+      "sha256": "fb4588941bb1a958286053c20d11cf46c60f5a956cd0f41697d5feae5ec16334"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5938317256277622790,
+   "access_hash": -874409272990115000,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "rF5kQBMSYFICAAAAUCWVFDNCLnU",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14988010,
+    "second_background_color": 8615618,
+    "third_background_color": 15383001,
+    "fourth_background_color": 11834342,
+    "intensity": -35,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938141815453518446,
+    "access_hash": -4248017281558775131,
+    "date": 1640788187,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 73997,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938141815453518446.dat",
+    "sha256": "8a77f2049bc3932007cbf615735f1cccee20cfd75c3c1a8912a3704a82432448",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 26402,
+      "path": "default_wallpapers/thumbs/m/5938141815453518446.dat",
+      "sha256": "b8c49e6fc4c91263ebbe2c4aa22304f606152fa6d5c14f7edb947ea38ef5d181"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5935767978439081993,
+   "access_hash": -4908738408710949341,
+   "type": 0,
+   "default": true,
+   "pattern": true,
+   "dark": true,
+   "slug": "aiuT0cIzaVIHAAAAjS-ebiVKLtU",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 14988010,
+    "second_background_color": 8615618,
+    "third_background_color": 15383001,
+    "fourth_background_color": 11834342,
+    "intensity": -35,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5938158372552444547,
+    "access_hash": 3151911047396064341,
+    "date": 1640788206,
+    "mime_type": "application/x-tgwallpattern",
+    "size": 113639,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5938158372552444547.dat",
+    "sha256": "cf7a462195b3ab0464b257055f2484e0d243e04360b1863be436ee07bc1eb1ae",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "pattern.tgv"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 155,
+      "h": 320,
+      "size": 28852,
+      "path": "default_wallpapers/thumbs/m/5938158372552444547.dat",
+      "sha256": "5d3a55bf7076f9c816fe79d821c5f12076a53caff6f019cd322ca2c28b4606b0"
+     }
+    ]
+   }
+  },
+  {
+   "id": 3388302328334385159,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 1441900,
+    "second_background_color": 5441578,
+    "third_background_color": 985908,
+    "fourth_background_color": 4790859,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 3388302328334385160,
+   "access_hash": 0,
+   "type": 1,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 1464934,
+    "second_background_color": 4983891,
+    "third_background_color": 531764,
+    "fourth_background_color": 5249899,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 0,
+    "access_hash": 0,
+    "date": 0,
+    "mime_type": "",
+    "size": 0,
+    "dc_id": 0,
+    "path": "",
+    "sha256": "",
+    "attributes": null,
+    "thumbs": null
+   }
+  },
+  {
+   "id": 5906743109143756801,
+   "access_hash": 1179850607156107804,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "wRHnDZD3-FEBAAAAjIIJrlTu1xg",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695178,
+    "access_hash": 4332443815406376788,
+    "date": 1547647645,
+    "mime_type": "image/jpeg",
+    "size": 723971,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695178.dat",
+    "sha256": "52b180888d661d8b643e4b57ab84a4408e6c740c0546a60123f11dd5538be527",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_25.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 8431,
+      "path": "default_wallpapers/thumbs/m/5044527775931695178.dat",
+      "sha256": "1d9b39206ae26a21bc62cbf7eca9e0c99e0111aa3374f4ad8763f9856615ca8f"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906653864018313217,
+   "access_hash": 4878711556025903343,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "yf9PpmWm-FEBAAAAapSVTMR9AmA",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695171,
+    "access_hash": -7286245232726123572,
+    "date": 1547647596,
+    "mime_type": "image/jpeg",
+    "size": 1644794,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695171.dat",
+    "sha256": "c17aaae208039aa3e09923bbb9e41bdea910d3f223da55e013478487278c1d2b",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_15.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 11487,
+      "path": "default_wallpapers/thumbs/m/5044527775931695171.dat",
+      "sha256": "5a9c1b6e79d3358aa6edf758021f3c571916c706e343ddcf89ca043f1e15a2a1"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5906481103253798913,
+   "access_hash": 2670465458012141336,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "CK2cG0UJ-FEBAAAAeI0d9Vuj2CQ",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695180,
+    "access_hash": -7402189952328260961,
+    "date": 1547647653,
+    "mime_type": "image/jpeg",
+    "size": 633450,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695180.dat",
+    "sha256": "1e5501689e14e78906c38715f2af077dd53528a62a5a489eaf915f9b0f4828a0",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_27.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 6368,
+      "path": "default_wallpapers/thumbs/m/5044527775931695180.dat",
+      "sha256": "c4852aba00952fdfb943951c06cc6707d95c2f16260d91fd8eb315d46b78b960"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5908833349467635713,
+   "access_hash": -8951912792455934035,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "dfa_O6BkAFIBAAAArunsysEw-X8",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5044527775931695168,
+    "access_hash": -5722131371998346976,
+    "date": 1547647578,
+    "mime_type": "image/jpeg",
+    "size": 876992,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5044527775931695168.dat",
+    "sha256": "d647a90506a760bf3f9bfa64a8b223b846483a32ec59af0e8cd64fdbc5886253",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_12.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 18793,
+      "path": "default_wallpapers/thumbs/m/5044527775931695168.dat",
+      "sha256": "bdfc1f358bb2f63e6409d7f0abeb7da99ea5ce7ea2746b5ba743cd3090aa9ae8"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5945196943482290177,
+   "access_hash": -413282519204142775,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "YRZSyB-VgVIBAAAAsaNJPdNxxpM",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5082456438849142867,
+    "access_hash": 6703986920102523631,
+    "date": 1548791939,
+    "mime_type": "image/jpeg",
+    "size": 226273,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5082456438849142867.dat",
+    "sha256": "3b9695f0c0dc6fa8b25b0a5231192da5e015fc6588287665e277d805ff4db7b5",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1080,
+      "h": 1920
+     },
+     {
+      "kind": "filename",
+      "file_name": "02.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 180,
+      "h": 320,
+      "size": 8149,
+      "path": "default_wallpapers/thumbs/m/5082456438849142867.dat",
+      "sha256": "9713e7176100b54aaa267f22e4d4570e9d3838ec7a1ca2cea8d9d8649f696391"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5947232783750397953,
+   "access_hash": -684737460100279653,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "I9m3arXQiFIBAAAAyYGQ6povw_E",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458320,
+    "access_hash": -1932239856236363103,
+    "date": 1548797674,
+    "mime_type": "image/jpeg",
+    "size": 773269,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458320.dat",
+    "sha256": "c2b8b1c995997794e2a893f381a162f6ed11b140aed07642fad8b0d1177da5ab",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_N9.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 5037,
+      "path": "default_wallpapers/thumbs/m/5080412794625458320.dat",
+      "sha256": "97ac1546528ed1b0a9916c97518736f21e20139f7ebe8df7a18e710c2da2009d"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5947391152079503361,
+   "access_hash": 8343188857812786678,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "RKoGzb5giVIBAAAAW_S7sn3YmKc",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458321,
+    "access_hash": 7241195381711291042,
+    "date": 1548797675,
+    "mime_type": "image/jpeg",
+    "size": 391262,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458321.dat",
+    "sha256": "77f9d264b7c9e9f2e089776ba01bd94fc18235b2012303e4a96f58731eb52735",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_N2.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 10217,
+      "path": "default_wallpapers/thumbs/m/5080412794625458321.dat",
+      "sha256": "45f2c73ae3f62fd5ab4aeca8f603f6e6c6c0bc2fc37d144c297c6047caa12497"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5945059242535813121,
+   "access_hash": -2555527803353833195,
+   "type": 0,
+   "default": true,
+   "pattern": false,
+   "dark": true,
+   "slug": "Gbi3zeIXgVIBAAAAbHXUth5xfMc",
+   "settings": {
+    "id": 0,
+    "blur": false,
+    "motion": false,
+    "background_color": 0,
+    "second_background_color": 0,
+    "third_background_color": 0,
+    "fourth_background_color": 0,
+    "intensity": 0,
+    "rotation": 0
+   },
+   "document": {
+    "id": 5080412794625458322,
+    "access_hash": -5665410597438349866,
+    "date": 1548797677,
+    "mime_type": "image/jpeg",
+    "size": 724988,
+    "dc_id": 4,
+    "path": "default_wallpapers/documents/5080412794625458322.dat",
+    "sha256": "2eec797f40fbdce84dcb9411ecc17294c50056c78cd7287898180e57b824b5b0",
+    "attributes": [
+     {
+      "kind": "image_size",
+      "w": 1440,
+      "h": 2960
+     },
+     {
+      "kind": "filename",
+      "file_name": "BG_N4.jpg"
+     }
+    ],
+    "thumbs": [
+     {
+      "kind": "size",
+      "type": "m",
+      "w": 156,
+      "h": 320,
+      "size": 3108,
+      "path": "default_wallpapers/thumbs/m/5080412794625458322.dat",
+      "sha256": "b4bb329c4d88967c049c26fefcbe320cfeb76cdc6dd3bb5a76195c94320e3342"
+     }
+    ]
+   }
+  }
+ ],
+ "peer_colors": [
+  {
+   "id": 5,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 3,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 1,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 0,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 2,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 4,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 6,
+   "hidden": false,
+   "channel_min_level": 1,
+   "colors": null,
+   "dark_colors": null
+  },
+  {
+   "id": 12,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     3379668,
+     8246256
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     5423103,
+     742548
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 10,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2599184,
+     11000919
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     11004782,
+     1474093
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 8,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     14712875,
+     16434484
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     15511630,
+     12801812
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 7,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     14766162,
+     16363107
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     16749440,
+     10039095
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 9,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     10510323,
+     16027647
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     13015039,
+     6173128
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 11,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2600142,
+     8579286
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     4249808,
+     285823
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 13,
+   "hidden": false,
+   "channel_min_level": 2,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     14500721,
+     16760479
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     16746150,
+     9320046
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 14,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2391021,
+     15747158,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     4170494,
+     15024719,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 15,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     14055202,
+     2007057,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     16748638,
+     3319079,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 16,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     1547842,
+     15223359,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     6738788,
+     13976655,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 17,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2659503,
+     7324758,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2276578,
+     4039232,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 18,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     826035,
+     16756117,
+     16770741
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     2276578,
+     16750456,
+     16767595
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 19,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     7821270,
+     16225808,
+     16768654
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     9933311,
+     15889181,
+     16767833
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  },
+  {
+   "id": 20,
+   "hidden": false,
+   "channel_min_level": 3,
+   "colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     1410511,
+     15903517,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorSet",
+    "colors": [
+     4040427,
+     15639837,
+     16777215
+    ],
+    "palette_colors": null,
+    "bg_colors": null,
+    "story_colors": null
+   }
+  }
+ ],
+ "peer_profile_colors": [
+  {
+   "id": 5,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     4888278
+    ],
+    "bg_colors": [
+     5935035
+    ],
+    "story_colors": [
+     7264511,
+     7405535
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     3375297
+    ],
+    "bg_colors": [
+     4682132
+    ],
+    "story_colors": [
+     9029631,
+     7536638
+    ]
+   }
+  },
+  {
+   "id": 3,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     5485111
+    ],
+    "bg_colors": [
+     4825941
+    ],
+    "story_colors": [
+     7991418,
+     13299018
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     3972130
+    ],
+    "bg_colors": [
+     3371323
+    ],
+    "story_colors": [
+     7919501,
+     12703080
+    ]
+   }
+  },
+  {
+   "id": 1,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     14386489
+    ],
+    "bg_colors": [
+     12745790
+    ],
+    "story_colors": [
+     16756531,
+     16240230
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     12807972
+    ],
+    "bg_colors": [
+     9723436
+    ],
+    "story_colors": [
+     16756531,
+     16240230
+    ]
+   }
+  },
+  {
+   "id": 0,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     13722204
+    ],
+    "bg_colors": [
+     12211792
+    ],
+    "story_colors": [
+     16752253,
+     16758622
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     12209223
+    ],
+    "bg_colors": [
+     10241344
+    ],
+    "story_colors": [
+     16744573,
+     16745797
+    ]
+   }
+  },
+  {
+   "id": 2,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     10513887
+    ],
+    "bg_colors": [
+     9792200
+    ],
+    "story_colors": [
+     16030463,
+     16753387
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     9000906
+    ],
+    "bg_colors": [
+     7426201
+    ],
+    "story_colors": [
+     15366399,
+     16755185
+    ]
+   }
+  },
+  {
+   "id": 4,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     4565185
+    ],
+    "bg_colors": [
+     4102061
+    ],
+    "story_colors": [
+     5036799,
+     4325314
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     3646897
+    ],
+    "bg_colors": [
+     3702407
+    ],
+    "story_colors": [
+     4708863,
+     3342285
+    ]
+   }
+  },
+  {
+   "id": 6,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     13460119
+    ],
+    "bg_colors": [
+     12079992
+    ],
+    "story_colors": [
+     16746153,
+     16754323
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     11947138
+    ],
+    "bg_colors": [
+     9717603
+    ],
+    "story_colors": [
+     16675727,
+     16751486
+    ]
+   }
+  },
+  {
+   "id": 7,
+   "hidden": false,
+   "channel_min_level": 5,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     9477803
+    ],
+    "bg_colors": [
+     8358805
+    ],
+    "story_colors": [
+     12834019,
+     15726847
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     7964822
+    ],
+    "bg_colors": [
+     4412001
+    ],
+    "story_colors": [
+     10071235,
+     14871283
+    ]
+   }
+  },
+  {
+   "id": 13,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     3574481,
+     8246256
+    ],
+    "bg_colors": [
+     5475266,
+     5089469
+    ],
+    "story_colors": [
+     7264511,
+     7405535
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     5148620,
+     7525869
+    ],
+    "bg_colors": [
+     3694988,
+     4557729
+    ],
+    "story_colors": [
+     9029631,
+     7536638
+    ]
+   }
+  },
+  {
+   "id": 11,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     2599184,
+     11000919
+    ],
+    "bg_colors": [
+     4036437,
+     9021008
+    ],
+    "story_colors": [
+     7991418,
+     13299018
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     4036437,
+     10932055
+    ],
+    "bg_colors": [
+     2714179,
+     6262596
+    ],
+    "story_colors": [
+     7919501,
+     12703080
+    ]
+   }
+  },
+  {
+   "id": 9,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     14712875,
+     15842348
+    ],
+    "bg_colors": [
+     13595204,
+     13407283
+    ],
+    "story_colors": [
+     16756531,
+     16240230
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     13595204,
+     15247677
+    ],
+    "bg_colors": [
+     9393455,
+     10580530
+    ],
+    "story_colors": [
+     16756531,
+     16240230
+    ]
+   }
+  },
+  {
+   "id": 8,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     14966882,
+     16363107
+    ],
+    "bg_colors": [
+     13194845,
+     14253143
+    ],
+    "story_colors": [
+     16752253,
+     16758622
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     13194845,
+     16486759
+    ],
+    "bg_colors": [
+     10044227,
+     11294782
+    ],
+    "story_colors": [
+     16744573,
+     16745797
+    ]
+   }
+  },
+  {
+   "id": 10,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     10510323,
+     16027647
+    ],
+    "bg_colors": [
+     9855700,
+     12150454
+    ],
+    "story_colors": [
+     16030463,
+     16753387
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     9855700,
+     15236580
+    ],
+    "bg_colors": [
+     6506129,
+     9588898
+    ],
+    "story_colors": [
+     15366399,
+     16755185
+    ]
+   }
+  },
+  {
+   "id": 12,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     2600142,
+     9234906
+    ],
+    "bg_colors": [
+     4036026,
+     5287320
+    ],
+    "story_colors": [
+     5036799,
+     4325314
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     3774400,
+     7986629
+    ],
+    "bg_colors": [
+     3173500,
+     4102270
+    ],
+    "story_colors": [
+     4708863,
+     3342285
+    ]
+   }
+  },
+  {
+   "id": 14,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     13715826,
+     16760479
+    ],
+    "bg_colors": [
+     11554676,
+     13723245
+    ],
+    "story_colors": [
+     16746153,
+     16754323
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     12865666,
+     15830166
+    ],
+    "bg_colors": [
+     8929632,
+     10900057
+    ],
+    "story_colors": [
+     16675727,
+     16751486
+    ]
+   }
+  },
+  {
+   "id": 15,
+   "hidden": false,
+   "channel_min_level": 6,
+   "colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     7108740,
+     11384769
+    ],
+    "bg_colors": [
+     6517890,
+     8096407
+    ],
+    "story_colors": [
+     12834019,
+     15726847
+    ]
+   },
+   "dark_colors": {
+    "predicate_name": "help.peerColorProfileSet",
+    "colors": null,
+    "palette_colors": [
+     7108740,
+     11384769
+    ],
+    "bg_colors": [
+     5464174,
+     3688020
+    ],
+    "story_colors": [
+     10071235,
+     14871283
+    ]
+   }
+  }
+ ]
+}

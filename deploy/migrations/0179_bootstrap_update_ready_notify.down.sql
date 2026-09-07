@@ -1,0 +1,3 @@
+DROP TRIGGER IF EXISTS bootstrap_update_jobs_update_ready_notify ON bootstrap_update_jobs;
+DROP TRIGGER IF EXISTS bootstrap_update_jobs_insert_ready_notify ON bootstrap_update_jobs;
+DROP FUNCTION IF EXISTS bootstrap_update_jobs_notify_ready();

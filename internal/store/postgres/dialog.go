@@ -1,0 +1,1304 @@
+package postgres
+
+import (
+	"context"
+	"encoding/binary"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"hash/fnv"
+
+	"github.com/jackc/pgx/v5"
+
+	"telesrv/internal/domain"
+	"telesrv/internal/store/postgres/sqlcgen"
+)
+
+// DialogStore 用 PostgreSQL 实现 store.DialogStore。
+type DialogStore struct {
+	db sqlcgen.DBTX
+	q  *sqlcgen.Queries
+}
+
+const dialogListSnapshotLimit = 10000
+
+// NewDialogStore 基于 pgx 连接池（或事务）创建 DialogStore。
+func NewDialogStore(db sqlcgen.DBTX) *DialogStore {
+	return &DialogStore{db: db, q: sqlcgen.New(db)}
+}
+
+func (s *DialogStore) enrichDialogTopMessages(ctx context.Context, userID int64, messages []domain.Message) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	return NewMessageStore(s.db).enrichPrivateMessageReactions(ctx, s.db, userID, messages)
+}
+
+func (s *DialogStore) ListByUser(ctx context.Context, userID int64, filter domain.DialogFilter) (domain.DialogList, error) {
+	return s.listByUser(ctx, userID, filter, 500)
+}
+
+func (s *DialogStore) listByUser(ctx context.Context, userID int64, filter domain.DialogFilter, maxLimit int) (domain.DialogList, error) {
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	if maxLimit <= 0 {
+		maxLimit = 500
+	}
+	if limit > maxLimit {
+		limit = maxLimit
+	}
+	offsetPeerID := int64(0)
+	if filter.HasOffsetPeer {
+		offsetPeerID = filter.OffsetPeer.ID
+	}
+	folderParams := dialogFolderQueryParams(filter.Folder)
+	summaryRows, err := s.q.ListDialogSummaryByUser(ctx, sqlcgen.ListDialogSummaryByUserParams{
+		UserID:                 userID,
+		HasFolderID:            filter.HasFolderID,
+		FolderID:               pgInt32NonNegative(filter.FolderID),
+		FolderExcludeArchived:  folderParams.excludeArchived,
+		FolderExcludeRead:      folderParams.excludeRead,
+		FolderExcludePeerTypes: folderParams.excludeTypes,
+		FolderExcludePeerIds:   folderParams.excludeIDs,
+		FolderIncludePeerTypes: folderParams.includeTypes,
+		FolderIncludePeerIds:   folderParams.includeIDs,
+		FolderPinnedPeerTypes:  folderParams.pinnedTypes,
+		FolderPinnedPeerIds:    folderParams.pinnedIDs,
+		FolderContacts:         folderParams.contacts,
+		FolderNonContacts:      folderParams.nonContacts,
+		PinnedOnly:             filter.PinnedOnly,
+		ExcludePinned:          filter.ExcludePinned,
+	})
+	if err != nil {
+		return domain.DialogList{}, fmt.Errorf("list dialog summary: %w", err)
+	}
+	summary := make([]domain.Dialog, 0, len(summaryRows))
+	for _, row := range summaryRows {
+		summary = append(summary, domain.Dialog{
+			Peer:                  domain.Peer{Type: domain.PeerType(row.PeerType), ID: row.PeerID},
+			FolderID:              int(row.FolderID),
+			TopMessage:            int(row.TopMessageID),
+			TopMessageDate:        int(row.TopMessageDate),
+			ReadInboxMaxID:        int(row.ReadInboxMaxID),
+			ReadOutboxMaxID:       int(row.ReadOutboxMaxID),
+			UnreadCount:           int(row.UnreadCount),
+			UnreadMentions:        int(row.UnreadMentionsCount),
+			UnreadReactions:       int(row.UnreadReactionsCount),
+			TTLPeriod:             int(row.TtlPeriod),
+			ThemeEmoticon:         row.ThemeEmoticon,
+			HasScheduled:          row.HasScheduled,
+			Pinned:                row.Pinned,
+			PinnedOrder:           int(row.PinnedOrder),
+			UnreadMark:            row.UnreadMark,
+			PeerSettingsBarHidden: row.HiddenPeerSettingsBar,
+		})
+	}
+	out := domain.DialogList{
+		Dialogs: make([]domain.Dialog, 0, limit),
+		Count:   len(summary),
+		Hash:    dialogListHash(summary),
+	}
+	if len(summary) == 0 {
+		return out, nil
+	}
+	rows, err := s.q.ListDialogsByUser(ctx, sqlcgen.ListDialogsByUserParams{
+		UserID:                 userID,
+		LimitCount:             int32(limit),
+		HasFolderID:            filter.HasFolderID,
+		FolderID:               pgInt32NonNegative(filter.FolderID),
+		FolderExcludeArchived:  folderParams.excludeArchived,
+		FolderExcludeRead:      folderParams.excludeRead,
+		FolderExcludePeerTypes: folderParams.excludeTypes,
+		FolderExcludePeerIds:   folderParams.excludeIDs,
+		FolderIncludePeerTypes: folderParams.includeTypes,
+		FolderIncludePeerIds:   folderParams.includeIDs,
+		FolderPinnedPeerTypes:  folderParams.pinnedTypes,
+		FolderPinnedPeerIds:    folderParams.pinnedIDs,
+		FolderContacts:         folderParams.contacts,
+		FolderNonContacts:      folderParams.nonContacts,
+		PinnedOnly:             filter.PinnedOnly,
+		ExcludePinned:          filter.ExcludePinned,
+		OffsetID:               pgInt32NonNegative(filter.OffsetID),
+		OffsetDate:             pgInt32NonNegative(filter.OffsetDate),
+		HasOffsetPeer:          filter.HasOffsetPeer,
+		OffsetPeerID:           offsetPeerID,
+	})
+	if err != nil {
+		return domain.DialogList{}, fmt.Errorf("list dialogs: %w", err)
+	}
+	out.Messages = make([]domain.Message, 0, len(rows))
+	out.Users = make([]domain.User, 0, len(rows))
+	seenUsers := map[int64]struct{}{}
+	for _, row := range rows {
+		dialog := domain.Dialog{
+			Peer: domain.Peer{
+				Type: domain.PeerType(row.PeerType),
+				ID:   row.PeerID,
+			},
+			FolderID:              int(row.FolderID),
+			TopMessage:            int(row.TopMessageID),
+			TopMessageDate:        int(row.TopMessageDate),
+			ReadInboxMaxID:        int(row.ReadInboxMaxID),
+			ReadOutboxMaxID:       int(row.ReadOutboxMaxID),
+			UnreadCount:           int(row.UnreadCount),
+			UnreadMentions:        int(row.UnreadMentionsCount),
+			UnreadReactions:       int(row.UnreadReactionsCount),
+			TTLPeriod:             int(row.TtlPeriod),
+			ThemeEmoticon:         row.ThemeEmoticon,
+			HasScheduled:          row.HasScheduled,
+			Pinned:                row.Pinned,
+			PinnedOrder:           int(row.PinnedOrder),
+			UnreadMark:            row.UnreadMark,
+			PeerSettingsBarHidden: row.HiddenPeerSettingsBar,
+		}
+		out.Dialogs = append(out.Dialogs, dialog)
+		if row.PeerUserID != 0 {
+			if _, ok := seenUsers[row.PeerUserID]; !ok {
+				seenUsers[row.PeerUserID] = struct{}{}
+				out.Users = append(out.Users, domain.User{
+					ID:                    row.PeerUserID,
+					AccessHash:            row.PeerAccessHash,
+					Phone:                 row.PeerPhone,
+					FirstName:             row.PeerFirstName,
+					LastName:              row.PeerLastName,
+					Username:              row.PeerUsername,
+					CountryCode:           row.PeerCountryCode,
+					Verified:              row.PeerVerified,
+					Support:               row.PeerSupport,
+					Bot:                   row.PeerIsBot,
+					BotInfoVersion:        int(row.PeerBotInfoVersion),
+					PremiumUntil:          int(row.PeerPremiumUntil),
+					EmojiStatusDocumentID: row.PeerEmojiStatusDocumentID,
+					EmojiStatusUntil:      int(row.PeerEmojiStatusUntil),
+					LastSeenAt:            int(row.PeerLastSeenAt),
+					Contact:               row.PeerContact,
+					Mutual:                row.PeerMutual,
+				})
+			}
+		}
+		if row.MessageID != 0 {
+			entities, err := decodeMessageEntities(row.MessageEntitiesJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message entities: %w", err)
+			}
+			media, err := decodeMessageMedia(row.MessageMediaJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message media: %w", err)
+			}
+			markup, err := decodeReplyMarkup(row.MessageReplyMarkupJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message reply markup: %w", err)
+			}
+			rich, err := decodeRichMessage(row.MessageRichMessageJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message rich message: %w", err)
+			}
+			// top message 必须带全量元数据：TDesktop 把 getDialogs 的消息
+			// 先入缓存且不被后续 difference/getHistory 覆盖，缺 reply 等
+			// 字段会让置顶/回复服务消息永久渲染成 "Deleted message"。
+			silent, noforwards, reply, forward, err := messageMetadataFromFields(
+				row.MessageSilent,
+				row.MessageNoforwards,
+				row.MessageReplyToMsgID,
+				row.MessageReplyToPeerType,
+				row.MessageReplyToPeerID,
+				row.MessageReplyToTopID,
+				row.MessageReplyToStoryID,
+				row.MessageQuoteText,
+				row.MessageQuoteEntitiesJson,
+				row.MessageQuoteOffset,
+				row.MessageReplyExternalJson,
+				row.MessageFwdFromPeerType,
+				row.MessageFwdFromPeerID,
+				row.MessageFwdFromName,
+				row.MessageFwdDate,
+				row.MessageFwdSavedFromPeerType,
+				row.MessageFwdSavedFromPeerID,
+				row.MessageFwdSavedFromMsgID,
+			)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message metadata: %w", err)
+			}
+			out.Messages = append(out.Messages, domain.Message{
+				ID:             int(row.MessageID),
+				UID:            row.MessagePrivateMessageID,
+				OwnerUserID:    row.UserID,
+				Peer:           dialog.Peer,
+				From:           domain.Peer{Type: domain.PeerTypeUser, ID: row.MessageFromUserID},
+				Date:           int(row.MessageDate),
+				EditDate:       int(row.MessageEditDate),
+				HideEdited:     row.MessageHideEdited,
+				Out:            row.MessageOutgoing,
+				Silent:         silent,
+				NoForwards:     noforwards,
+				Body:           row.MessageBody,
+				Entities:       entities,
+				ReplyTo:        reply,
+				Forward:        forward,
+				Media:          media,
+				TTLPeriod:      int(row.MessageTtlPeriod),
+				ExpiresAt:      int(row.MessageExpiresAt),
+				MediaUnread:    row.MessageMediaUnread,
+				ReactionUnread: row.MessageReactionUnread,
+				ViaBotID:       row.MessageViaBotID,
+				GroupedID:      row.MessageGroupedID,
+				Effect:         row.MessageEffect,
+				ReplyMarkup:    markup,
+				RichMessage:    rich,
+				Pinned:         row.MessagePinned,
+				SavedPeer:      savedPeerFromFields(row.MessageSavedPeerType, row.MessageSavedPeerID),
+			})
+		}
+	}
+	if err := s.enrichDialogTopMessages(ctx, userID, out.Messages); err != nil {
+		return domain.DialogList{}, err
+	}
+	return out, nil
+}
+
+// ListDialogSnapshotHeaders returns the complete bounded private-dialog owner
+// index without hydrating peer users or top-message payloads. Page payloads are
+// resolved later through the versioned per-peer read model.
+func (s *DialogStore) ListDialogSnapshotHeaders(ctx context.Context, userID int64, filter domain.DialogFilter) (domain.DialogList, error) {
+	folderParams := dialogFolderQueryParams(filter.Folder)
+	rows, err := s.q.ListDialogSummaryByUser(ctx, sqlcgen.ListDialogSummaryByUserParams{
+		UserID:                 userID,
+		HasFolderID:            filter.HasFolderID,
+		FolderID:               pgInt32NonNegative(filter.FolderID),
+		FolderExcludeArchived:  folderParams.excludeArchived,
+		FolderExcludeRead:      folderParams.excludeRead,
+		FolderExcludePeerTypes: folderParams.excludeTypes,
+		FolderExcludePeerIds:   folderParams.excludeIDs,
+		FolderIncludePeerTypes: folderParams.includeTypes,
+		FolderIncludePeerIds:   folderParams.includeIDs,
+		FolderPinnedPeerTypes:  folderParams.pinnedTypes,
+		FolderPinnedPeerIds:    folderParams.pinnedIDs,
+		FolderContacts:         folderParams.contacts,
+		FolderNonContacts:      folderParams.nonContacts,
+		PinnedOnly:             filter.PinnedOnly,
+		ExcludePinned:          filter.ExcludePinned,
+	})
+	if err != nil {
+		return domain.DialogList{}, fmt.Errorf("list dialog snapshot headers: %w", err)
+	}
+	if len(rows) > dialogListSnapshotLimit {
+		return domain.DialogList{}, fmt.Errorf("private dialog snapshot exceeds %d entries", dialogListSnapshotLimit)
+	}
+	dialogs := make([]domain.Dialog, 0, len(rows))
+	peerTypes := make([]string, 0, len(rows))
+	peerIDs := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		peerTypes = append(peerTypes, row.PeerType)
+		peerIDs = append(peerIDs, row.PeerID)
+		dialogs = append(dialogs, domain.Dialog{
+			Peer:                  domain.Peer{Type: domain.PeerType(row.PeerType), ID: row.PeerID},
+			FolderID:              int(row.FolderID),
+			TopMessage:            int(row.TopMessageID),
+			TopMessageDate:        int(row.TopMessageDate),
+			ReadInboxMaxID:        int(row.ReadInboxMaxID),
+			ReadOutboxMaxID:       int(row.ReadOutboxMaxID),
+			UnreadCount:           int(row.UnreadCount),
+			UnreadMentions:        int(row.UnreadMentionsCount),
+			UnreadReactions:       int(row.UnreadReactionsCount),
+			TTLPeriod:             int(row.TtlPeriod),
+			ThemeEmoticon:         row.ThemeEmoticon,
+			HasScheduled:          row.HasScheduled,
+			Pinned:                row.Pinned,
+			PinnedOrder:           int(row.PinnedOrder),
+			UnreadMark:            row.UnreadMark,
+			PeerSettingsBarHidden: row.HiddenPeerSettingsBar,
+		})
+	}
+	var dependencyHash int64
+	if len(peerIDs) > 0 {
+		if err := s.db.QueryRow(ctx, `
+WITH requested AS (
+    SELECT peer_type, peer_id
+    FROM unnest($2::text[], $3::bigint[]) AS peer(peer_type, peer_id)
+)
+SELECT COALESCE(bit_xor(v.hash), 0)::bigint
+FROM requested peer
+JOIN read_model_versions v
+  ON v.model = 'dialog_light'
+ AND v.owner_user_id = $1
+ AND v.peer_type = peer.peer_type
+ AND v.peer_id = peer.peer_id`, userID, peerTypes, peerIDs).Scan(&dependencyHash); err != nil {
+			return domain.DialogList{}, fmt.Errorf("read private dialog snapshot dependency hash: %w", err)
+		}
+	}
+	return domain.DialogList{
+		Dialogs: dialogs,
+		Count:   len(dialogs),
+		Hash:    mixDialogListDependencyHash(dialogListHash(dialogs), dependencyHash),
+	}, nil
+}
+
+// ListAllBuiltinDialogSnapshotHeaders loads one owner base across main and
+// archive folders. Pinned/exclude-pinned/folder variants are derived by the app
+// layer from this immutable base instead of repeating the owner scan.
+func (s *DialogStore) ListAllBuiltinDialogSnapshotHeaders(ctx context.Context, userID int64) (domain.DialogList, error) {
+	if userID == 0 {
+		return domain.DialogList{}, nil
+	}
+	rows, err := s.db.Query(ctx, `
+SELECT d.peer_type,
+       d.peer_id,
+       d.folder_id,
+       d.top_message_id,
+       d.top_message_date,
+       d.read_inbox_max_id,
+       d.read_outbox_max_id,
+       d.unread_count,
+       d.unread_mentions_count,
+       d.unread_reactions_count,
+       d.ttl_period,
+       d.theme_emoticon,
+       d.has_scheduled,
+       d.pinned,
+       d.pinned_order,
+       d.unread_mark,
+       d.hidden_peer_settings_bar
+FROM dialogs AS d
+WHERE d.user_id = $1
+  AND d.folder_id IN (0, 1)
+ORDER BY d.pinned DESC,
+         CASE WHEN d.pinned THEN COALESCE(d.pinned_order, 0) ELSE 0 END DESC,
+         d.top_message_date DESC,
+         d.top_message_id DESC,
+         d.peer_id DESC
+LIMIT $2`, userID, dialogListSnapshotLimit+1)
+	if err != nil {
+		return domain.DialogList{}, fmt.Errorf("list all built-in private dialog snapshot headers: %w", err)
+	}
+	defer rows.Close()
+	dialogs := make([]domain.Dialog, 0, 128)
+	for rows.Next() {
+		var dialog domain.Dialog
+		var peerType string
+		if err := rows.Scan(
+			&peerType,
+			&dialog.Peer.ID,
+			&dialog.FolderID,
+			&dialog.TopMessage,
+			&dialog.TopMessageDate,
+			&dialog.ReadInboxMaxID,
+			&dialog.ReadOutboxMaxID,
+			&dialog.UnreadCount,
+			&dialog.UnreadMentions,
+			&dialog.UnreadReactions,
+			&dialog.TTLPeriod,
+			&dialog.ThemeEmoticon,
+			&dialog.HasScheduled,
+			&dialog.Pinned,
+			&dialog.PinnedOrder,
+			&dialog.UnreadMark,
+			&dialog.PeerSettingsBarHidden,
+		); err != nil {
+			return domain.DialogList{}, fmt.Errorf("scan all built-in private dialog snapshot headers: %w", err)
+		}
+		dialog.Peer.Type = domain.PeerType(peerType)
+		dialogs = append(dialogs, dialog)
+	}
+	if err := rows.Err(); err != nil {
+		return domain.DialogList{}, fmt.Errorf("list all built-in private dialog snapshot header rows: %w", err)
+	}
+	if len(dialogs) > dialogListSnapshotLimit {
+		return domain.DialogList{}, fmt.Errorf("private dialog snapshot exceeds %d entries", dialogListSnapshotLimit)
+	}
+	return domain.DialogList{Dialogs: dialogs, Count: len(dialogs)}, nil
+}
+
+// ListPrivateDialogPeerIDs is the narrow presence-fanout read model. Presence
+// needs only private peer IDs; routing it through GetDialogs would hydrate
+// channels, top messages, drafts and viewer projections and can even omit
+// private peers when the first page is channel-heavy.
+func (s *DialogStore) ListPrivateDialogPeerIDs(ctx context.Context, userID int64, limit int) ([]int64, error) {
+	if userID == 0 {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 4096 {
+		limit = 4096
+	}
+	rows, err := s.db.Query(ctx, `
+SELECT peer_id
+FROM dialogs
+WHERE user_id = $1
+  AND peer_type = 'user'
+  AND peer_id <> $1
+ORDER BY top_message_date DESC, top_message_id DESC, peer_id DESC
+LIMIT $2`, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list private dialog peer ids: %w", err)
+	}
+	defer rows.Close()
+	ids := make([]int64, 0, minInt(limit, 128))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (s *DialogStore) ListByPeers(ctx context.Context, userID int64, peers []domain.Peer) (domain.DialogList, error) {
+	if len(peers) == 0 {
+		return domain.DialogList{}, nil
+	}
+	peerTypes := make([]string, 0, len(peers))
+	peerIDs := make([]int64, 0, len(peers))
+	for _, peer := range peers {
+		if peer.Type == "" || peer.ID == 0 {
+			continue
+		}
+		peerTypes = append(peerTypes, string(peer.Type))
+		peerIDs = append(peerIDs, peer.ID)
+	}
+	if len(peerTypes) == 0 {
+		return domain.DialogList{}, nil
+	}
+	rows, err := s.q.ListDialogsByPeers(ctx, sqlcgen.ListDialogsByPeersParams{
+		UserID:    userID,
+		PeerTypes: peerTypes,
+		PeerIds:   peerIDs,
+	})
+	if err != nil {
+		return domain.DialogList{}, fmt.Errorf("list dialogs by peers: %w", err)
+	}
+	out := domain.DialogList{
+		Dialogs:  make([]domain.Dialog, 0, len(rows)),
+		Messages: make([]domain.Message, 0, len(rows)),
+		Users:    make([]domain.User, 0, len(rows)),
+	}
+	seenUsers := map[int64]struct{}{}
+	for _, row := range rows {
+		dialog := domain.Dialog{
+			Peer:                  domain.Peer{Type: domain.PeerType(row.PeerType), ID: row.PeerID},
+			FolderID:              int(row.FolderID),
+			TopMessage:            int(row.TopMessageID),
+			TopMessageDate:        int(row.TopMessageDate),
+			ReadInboxMaxID:        int(row.ReadInboxMaxID),
+			ReadOutboxMaxID:       int(row.ReadOutboxMaxID),
+			UnreadCount:           int(row.UnreadCount),
+			UnreadMentions:        int(row.UnreadMentionsCount),
+			UnreadReactions:       int(row.UnreadReactionsCount),
+			TTLPeriod:             int(row.TtlPeriod),
+			ThemeEmoticon:         row.ThemeEmoticon,
+			HasScheduled:          row.HasScheduled,
+			Pinned:                row.Pinned,
+			PinnedOrder:           int(row.PinnedOrder),
+			UnreadMark:            row.UnreadMark,
+			PeerSettingsBarHidden: row.HiddenPeerSettingsBar,
+		}
+		out.Dialogs = append(out.Dialogs, dialog)
+		if row.PeerUserID != 0 {
+			if _, ok := seenUsers[row.PeerUserID]; !ok {
+				seenUsers[row.PeerUserID] = struct{}{}
+				out.Users = append(out.Users, domain.User{
+					ID:                    row.PeerUserID,
+					AccessHash:            row.PeerAccessHash,
+					Phone:                 row.PeerPhone,
+					FirstName:             row.PeerFirstName,
+					LastName:              row.PeerLastName,
+					Username:              row.PeerUsername,
+					CountryCode:           row.PeerCountryCode,
+					Verified:              row.PeerVerified,
+					Support:               row.PeerSupport,
+					Bot:                   row.PeerIsBot,
+					BotInfoVersion:        int(row.PeerBotInfoVersion),
+					PremiumUntil:          int(row.PeerPremiumUntil),
+					EmojiStatusDocumentID: row.PeerEmojiStatusDocumentID,
+					EmojiStatusUntil:      int(row.PeerEmojiStatusUntil),
+					LastSeenAt:            int(row.PeerLastSeenAt),
+					Contact:               row.PeerContact,
+					Mutual:                row.PeerMutual,
+				})
+			}
+		}
+		if row.MessageID != 0 {
+			entities, err := decodeMessageEntities(row.MessageEntitiesJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message entities: %w", err)
+			}
+			media, err := decodeMessageMedia(row.MessageMediaJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message media: %w", err)
+			}
+			markup, err := decodeReplyMarkup(row.MessageReplyMarkupJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message reply markup: %w", err)
+			}
+			rich, err := decodeRichMessage(row.MessageRichMessageJson)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message rich message: %w", err)
+			}
+			// top message 必须带全量元数据：TDesktop 把 getDialogs 的消息
+			// 先入缓存且不被后续 difference/getHistory 覆盖，缺 reply 等
+			// 字段会让置顶/回复服务消息永久渲染成 "Deleted message"。
+			silent, noforwards, reply, forward, err := messageMetadataFromFields(
+				row.MessageSilent,
+				row.MessageNoforwards,
+				row.MessageReplyToMsgID,
+				row.MessageReplyToPeerType,
+				row.MessageReplyToPeerID,
+				row.MessageReplyToTopID,
+				row.MessageReplyToStoryID,
+				row.MessageQuoteText,
+				row.MessageQuoteEntitiesJson,
+				row.MessageQuoteOffset,
+				row.MessageReplyExternalJson,
+				row.MessageFwdFromPeerType,
+				row.MessageFwdFromPeerID,
+				row.MessageFwdFromName,
+				row.MessageFwdDate,
+				row.MessageFwdSavedFromPeerType,
+				row.MessageFwdSavedFromPeerID,
+				row.MessageFwdSavedFromMsgID,
+			)
+			if err != nil {
+				return domain.DialogList{}, fmt.Errorf("decode message metadata: %w", err)
+			}
+			out.Messages = append(out.Messages, domain.Message{
+				ID:             int(row.MessageID),
+				UID:            row.MessagePrivateMessageID,
+				OwnerUserID:    row.UserID,
+				Peer:           dialog.Peer,
+				From:           domain.Peer{Type: domain.PeerTypeUser, ID: row.MessageFromUserID},
+				Date:           int(row.MessageDate),
+				EditDate:       int(row.MessageEditDate),
+				HideEdited:     row.MessageHideEdited,
+				Out:            row.MessageOutgoing,
+				Silent:         silent,
+				NoForwards:     noforwards,
+				Body:           row.MessageBody,
+				Entities:       entities,
+				ReplyTo:        reply,
+				Forward:        forward,
+				Media:          media,
+				TTLPeriod:      int(row.MessageTtlPeriod),
+				ExpiresAt:      int(row.MessageExpiresAt),
+				MediaUnread:    row.MessageMediaUnread,
+				ReactionUnread: row.MessageReactionUnread,
+				ViaBotID:       row.MessageViaBotID,
+				GroupedID:      row.MessageGroupedID,
+				Effect:         row.MessageEffect,
+				ReplyMarkup:    markup,
+				RichMessage:    rich,
+				Pinned:         row.MessagePinned,
+				SavedPeer:      savedPeerFromFields(row.MessageSavedPeerType, row.MessageSavedPeerID),
+			})
+		}
+	}
+	if err := s.enrichDialogTopMessages(ctx, userID, out.Messages); err != nil {
+		return domain.DialogList{}, err
+	}
+	out.Count = len(out.Dialogs)
+	out.Hash = dialogListHash(out.Dialogs)
+	return out, nil
+}
+
+func (s *DialogStore) Upsert(ctx context.Context, userID int64, dialog domain.Dialog) error {
+	if err := s.q.UpsertDialog(ctx, sqlcgen.UpsertDialogParams{
+		UserID:               userID,
+		PeerType:             string(dialog.Peer.Type),
+		PeerID:               dialog.Peer.ID,
+		TopMessageID:         int32(dialog.TopMessage),
+		TopMessageDate:       int32(dialog.TopMessageDate),
+		ReadInboxMaxID:       int32(dialog.ReadInboxMaxID),
+		ReadOutboxMaxID:      int32(dialog.ReadOutboxMaxID),
+		UnreadCount:          int32(dialog.UnreadCount),
+		UnreadMentionsCount:  int32(dialog.UnreadMentions),
+		UnreadReactionsCount: int32(dialog.UnreadReactions),
+		Pinned:               dialog.Pinned,
+		UnreadMark:           dialog.UnreadMark,
+	}); err != nil {
+		return fmt.Errorf("upsert dialog: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) UpsertInbox(ctx context.Context, userID int64, dialog domain.Dialog) error {
+	if err := s.q.UpsertInboxDialog(ctx, sqlcgen.UpsertInboxDialogParams{
+		UserID:         userID,
+		PeerType:       string(dialog.Peer.Type),
+		PeerID:         dialog.Peer.ID,
+		TopMessageID:   int32(dialog.TopMessage),
+		TopMessageDate: int32(dialog.TopMessageDate),
+	}); err != nil {
+		return fmt.Errorf("upsert inbox dialog: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) SaveDraft(ctx context.Context, userID int64, draft domain.DialogDraft) error {
+	data, err := json.Marshal(draft)
+	if err != nil {
+		return fmt.Errorf("marshal dialog draft: %w", err)
+	}
+	if err := s.q.UpsertDialogDraft(ctx, sqlcgen.UpsertDialogDraftParams{
+		UserID:       userID,
+		PeerType:     string(draft.Peer.Type),
+		PeerID:       draft.Peer.ID,
+		TopMessageID: int32(draft.TopMessageID),
+		Date:         int32(draft.Date),
+		DraftJson:    data,
+	}); err != nil {
+		return fmt.Errorf("upsert dialog draft: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) GetDraft(ctx context.Context, userID int64, peer domain.Peer, topMessageID int) (domain.DialogDraft, bool, error) {
+	var data []byte
+	err := s.db.QueryRow(ctx, `
+SELECT draft
+FROM dialog_drafts
+WHERE user_id = $1 AND peer_type = $2 AND peer_id = $3 AND top_message_id = $4`,
+		userID, string(peer.Type), peer.ID, int32(topMessageID)).Scan(&data)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.DialogDraft{}, false, nil
+	}
+	if err != nil {
+		return domain.DialogDraft{}, false, fmt.Errorf("get dialog draft: %w", err)
+	}
+	var draft domain.DialogDraft
+	if err := json.Unmarshal(data, &draft); err != nil {
+		return domain.DialogDraft{}, false, fmt.Errorf("decode dialog draft: %w", err)
+	}
+	return draft, true, nil
+}
+
+func (s *DialogStore) DeleteDraft(ctx context.Context, userID int64, peer domain.Peer, topMessageID int) (bool, error) {
+	changed, err := s.q.DeleteDialogDraft(ctx, sqlcgen.DeleteDialogDraftParams{
+		UserID:       userID,
+		PeerType:     string(peer.Type),
+		PeerID:       peer.ID,
+		TopMessageID: int32(topMessageID),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("delete dialog draft: %w", err)
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) ListDrafts(ctx context.Context, userID int64, limit int) ([]domain.DialogDraft, error) {
+	rows, err := s.q.ListDialogDrafts(ctx, sqlcgen.ListDialogDraftsParams{
+		UserID:     userID,
+		LimitCount: int32(clampDialogDraftLimit(limit)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list dialog drafts: %w", err)
+	}
+	return decodeDialogDrafts(rows)
+}
+
+func (s *DialogStore) ClearDrafts(ctx context.Context, userID int64, limit int) ([]domain.DialogDraft, error) {
+	rows, err := s.q.ClearDialogDrafts(ctx, sqlcgen.ClearDialogDraftsParams{
+		UserID:     userID,
+		LimitCount: int32(clampDialogDraftLimit(limit)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("clear dialog drafts: %w", err)
+	}
+	return decodeDialogDrafts(rows)
+}
+
+func (s *DialogStore) MarkRead(ctx context.Context, userID int64, peer domain.Peer, maxID int) (domain.ReadHistoryResult, error) {
+	row, err := s.q.MarkDialogRead(ctx, sqlcgen.MarkDialogReadParams{
+		UserID:   userID,
+		PeerType: string(peer.Type),
+		PeerID:   peer.ID,
+		MaxID:    pgInt32NonNegative(maxID),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ReadHistoryResult{OwnerUserID: userID, Peer: peer, MaxID: maxID}, nil
+		}
+		return domain.ReadHistoryResult{}, fmt.Errorf("mark dialog read: %w", err)
+	}
+	return domain.ReadHistoryResult{
+		OwnerUserID:      row.UserID,
+		Peer:             domain.Peer{Type: domain.PeerType(row.PeerType), ID: row.PeerID},
+		MaxID:            int(row.ReadInboxMaxID),
+		StillUnreadCount: int(row.UnreadCount),
+		Changed:          row.Changed,
+	}, nil
+}
+
+func (s *DialogStore) SetPinned(ctx context.Context, userID int64, peer domain.Peer, pinned bool) (bool, int, error) {
+	row, err := s.q.SetDialogPinned(ctx, sqlcgen.SetDialogPinnedParams{
+		UserID:   userID,
+		PeerType: string(peer.Type),
+		PeerID:   peer.ID,
+		Pinned:   pinned,
+	})
+	if err != nil {
+		return false, 0, fmt.Errorf("set dialog pinned: %w", err)
+	}
+	return row.Changed, int(row.FolderID), nil
+}
+
+func (s *DialogStore) ReorderPinned(ctx context.Context, userID int64, folderID int, order []domain.Peer, force bool) (bool, error) {
+	peerTypes, peerIDs := peerArrays(order)
+	changed := false
+	if force {
+		tag, err := s.db.Exec(ctx, `
+WITH requested AS (
+    SELECT ($3::text[])[i] AS peer_type, ($4::bigint[])[i] AS peer_id
+    FROM generate_subscripts($4::bigint[], 1) AS g(i)
+    WHERE i <= cardinality($3::text[])
+)
+UPDATE dialogs d
+SET pinned = false, pinned_order = 0, updated_at = now()
+WHERE d.user_id = $1
+  AND d.pinned
+  AND d.folder_id = $2::int
+  AND NOT EXISTS (
+      SELECT 1
+      FROM requested r
+      WHERE r.peer_type = d.peer_type
+        AND r.peer_id = d.peer_id
+  )`, userID, folderID, peerTypes, peerIDs)
+		if err != nil {
+			return false, fmt.Errorf("clear pinned dialogs not in order: %w", err)
+		}
+		if tag.RowsAffected() > 0 {
+			changed = true
+		}
+	}
+	if len(peerTypes) == 0 {
+		return changed, nil
+	}
+	tag, err := s.db.Exec(ctx, `
+WITH requested AS (
+    SELECT ($3::text[])[i] AS peer_type, ($4::bigint[])[i] AS peer_id, i::int AS pos
+    FROM generate_subscripts($4::bigint[], 1) AS g(i)
+    WHERE i <= cardinality($3::text[])
+),
+deduped AS (
+    SELECT DISTINCT ON (peer_type, peer_id)
+        peer_type,
+        peer_id,
+        (cardinality($4::bigint[]) - pos + 1)::int AS ord
+    FROM requested
+    ORDER BY peer_type, peer_id, pos
+)
+UPDATE dialogs d
+SET pinned = true, pinned_order = deduped.ord, updated_at = now()
+FROM deduped
+WHERE d.user_id = $1
+  AND d.peer_type = deduped.peer_type
+  AND d.peer_id = deduped.peer_id
+  AND d.folder_id = $2::int
+  AND (NOT d.pinned OR d.pinned_order IS DISTINCT FROM deduped.ord)`, userID, folderID, peerTypes, peerIDs)
+	if err != nil {
+		return false, fmt.Errorf("reorder pinned dialogs: %w", err)
+	}
+	if tag.RowsAffected() > 0 {
+		changed = true
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) SetUnreadMark(ctx context.Context, userID int64, peer domain.Peer, unread bool) (bool, error) {
+	changed, err := s.q.SetDialogUnreadMark(ctx, sqlcgen.SetDialogUnreadMarkParams{
+		UserID:   userID,
+		PeerType: string(peer.Type),
+		PeerID:   peer.ID,
+		Unread:   unread,
+	})
+	if err != nil {
+		return false, fmt.Errorf("set dialog unread mark: %w", err)
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) ListUnreadMarked(ctx context.Context, userID int64) ([]domain.Peer, error) {
+	rows, err := s.q.ListDialogUnreadMarks(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list dialog unread marks: %w", err)
+	}
+	out := make([]domain.Peer, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.Peer{Type: domain.PeerType(row.PeerType), ID: row.PeerID})
+	}
+	return out, nil
+}
+
+func (s *DialogStore) ListDraftsByPeers(ctx context.Context, userID int64, peers []domain.Peer) ([]domain.DialogDraft, error) {
+	peerTypes := make([]string, 0, len(peers))
+	peerIDs := make([]int64, 0, len(peers))
+	seen := make(map[domain.Peer]struct{}, len(peers))
+	for _, peer := range peers {
+		if peer.ID == 0 {
+			continue
+		}
+		if _, ok := seen[peer]; ok {
+			continue
+		}
+		seen[peer] = struct{}{}
+		peerTypes = append(peerTypes, string(peer.Type))
+		peerIDs = append(peerIDs, peer.ID)
+	}
+	if len(peerIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := s.q.ListDialogDraftsByPeers(ctx, sqlcgen.ListDialogDraftsByPeersParams{
+		UserID:    userID,
+		PeerTypes: peerTypes,
+		PeerIds:   peerIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list dialog drafts by peers: %w", err)
+	}
+	return decodeDialogDrafts(rows)
+}
+
+func (s *DialogStore) SetChatTheme(ctx context.Context, userID int64, peer domain.Peer, emoticon string) (bool, error) {
+	if userID == 0 || peer.Type == "" || peer.ID == 0 {
+		return false, nil
+	}
+	var current string
+	err := s.db.QueryRow(ctx, `
+SELECT theme_emoticon
+FROM dialogs
+WHERE user_id = $1 AND peer_type = $2 AND peer_id = $3`,
+		userID, string(peer.Type), peer.ID).Scan(&current)
+	if errors.Is(err, pgx.ErrNoRows) {
+		if emoticon == "" {
+			return false, nil
+		}
+		if _, err := s.db.Exec(ctx, `
+INSERT INTO dialogs (user_id, peer_type, peer_id, theme_emoticon)
+VALUES ($1, $2, $3, $4)`,
+			userID, string(peer.Type), peer.ID, emoticon); err != nil {
+			return false, fmt.Errorf("insert dialog chat theme: %w", err)
+		}
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get dialog chat theme: %w", err)
+	}
+	if current == emoticon {
+		return false, nil
+	}
+	if _, err := s.db.Exec(ctx, `
+UPDATE dialogs
+SET theme_emoticon = $4, updated_at = now()
+WHERE user_id = $1 AND peer_type = $2 AND peer_id = $3`,
+		userID, string(peer.Type), peer.ID, emoticon); err != nil {
+		return false, fmt.Errorf("update dialog chat theme: %w", err)
+	}
+	return true, nil
+}
+
+func (s *DialogStore) SetPeerSettingsBarHidden(ctx context.Context, userID int64, peer domain.Peer) (bool, error) {
+	changed, err := s.q.SetPeerSettingsBarHidden(ctx, sqlcgen.SetPeerSettingsBarHiddenParams{
+		UserID:   userID,
+		PeerType: string(peer.Type),
+		PeerID:   peer.ID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("set peer settings bar hidden: %w", err)
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) PeerSettingsBarHidden(ctx context.Context, userID int64, peer domain.Peer) (bool, error) {
+	hidden, err := s.q.GetPeerSettingsBarHidden(ctx, sqlcgen.GetPeerSettingsBarHiddenParams{
+		UserID:   userID,
+		PeerType: string(peer.Type),
+		PeerID:   peer.ID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("get peer settings bar hidden: %w", err)
+	}
+	return hidden, nil
+}
+
+func (s *DialogStore) SetTranslationDisabled(ctx context.Context, userID int64, peer domain.Peer, disabled bool) (bool, error) {
+	if !disabled {
+		tag, err := s.db.Exec(ctx, `
+DELETE FROM peer_translation_settings
+WHERE user_id = $1 AND peer_type = $2 AND peer_id = $3`, userID, string(peer.Type), peer.ID)
+		if err != nil {
+			return false, fmt.Errorf("enable peer translations: %w", err)
+		}
+		return tag.RowsAffected() > 0, nil
+	}
+	var changed bool
+	err := s.db.QueryRow(ctx, `
+WITH changed AS (
+  INSERT INTO peer_translation_settings (user_id, peer_type, peer_id, disabled)
+  VALUES ($1, $2, $3, true)
+  ON CONFLICT (user_id, peer_type, peer_id) DO UPDATE
+    SET disabled = true, updated_at = now()
+    WHERE peer_translation_settings.disabled IS DISTINCT FROM true
+  RETURNING true
+)
+SELECT EXISTS (SELECT 1 FROM changed)`,
+		userID, string(peer.Type), peer.ID).Scan(&changed)
+	if err != nil {
+		return false, fmt.Errorf("set translation disabled: %w", err)
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) TranslationDisabled(ctx context.Context, userID int64, peer domain.Peer) (bool, error) {
+	var disabled bool
+	err := s.db.QueryRow(ctx, `
+SELECT disabled
+FROM peer_translation_settings
+WHERE user_id = $1 AND peer_type = $2 AND peer_id = $3`,
+		userID, string(peer.Type), peer.ID).Scan(&disabled)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get translation disabled: %w", err)
+	}
+	return disabled, nil
+}
+
+func (s *DialogStore) ListFolders(ctx context.Context, userID int64) (domain.DialogFolderList, error) {
+	rows, err := s.q.ListDialogFolders(ctx, userID)
+	if err != nil {
+		return domain.DialogFolderList{}, fmt.Errorf("list dialog folders: %w", err)
+	}
+	tagsEnabled := false
+	if enabled, err := s.q.GetDialogFolderTags(ctx, userID); err == nil {
+		tagsEnabled = enabled
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return domain.DialogFolderList{}, fmt.Errorf("get dialog folder tags: %w", err)
+	}
+	out := domain.DialogFolderList{
+		TagsEnabled: tagsEnabled,
+		Folders:     make([]domain.DialogFolder, 0, len(rows)),
+	}
+	for _, row := range rows {
+		folder, err := decodeDialogFolder(row.FilterJson)
+		if err != nil {
+			return domain.DialogFolderList{}, fmt.Errorf("decode dialog folder %d: %w", row.FilterID, err)
+		}
+		folder.ID = int(row.FilterID)
+		folder.IsChatlist = row.IsChatlist
+		out.Folders = append(out.Folders, folder)
+	}
+	return out, nil
+}
+
+func (s *DialogStore) GetFolder(ctx context.Context, userID int64, folderID int) (domain.DialogFolder, bool, error) {
+	row, err := s.q.GetDialogFolder(ctx, sqlcgen.GetDialogFolderParams{
+		UserID:   userID,
+		FilterID: pgInt32NonNegative(folderID),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.DialogFolder{}, false, nil
+		}
+		return domain.DialogFolder{}, false, fmt.Errorf("get dialog folder: %w", err)
+	}
+	folder, err := decodeDialogFolder(row.FilterJson)
+	if err != nil {
+		return domain.DialogFolder{}, false, fmt.Errorf("decode dialog folder: %w", err)
+	}
+	folder.ID = int(row.FilterID)
+	folder.IsChatlist = row.IsChatlist
+	return folder, true, nil
+}
+
+func (s *DialogStore) UpsertFolder(ctx context.Context, userID int64, folder domain.DialogFolder) error {
+	data, err := json.Marshal(folder)
+	if err != nil {
+		return fmt.Errorf("marshal dialog folder: %w", err)
+	}
+	if err := s.q.UpsertDialogFolder(ctx, sqlcgen.UpsertDialogFolderParams{
+		UserID:     userID,
+		FilterID:   pgInt32NonNegative(folder.ID),
+		IsChatlist: folder.IsChatlist,
+		FilterJson: data,
+	}); err != nil {
+		return fmt.Errorf("upsert dialog folder: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) DeleteFolder(ctx context.Context, userID int64, folderID int) error {
+	if err := s.q.DeleteDialogFolder(ctx, sqlcgen.DeleteDialogFolderParams{
+		UserID:   userID,
+		FilterID: pgInt32NonNegative(folderID),
+	}); err != nil {
+		return fmt.Errorf("delete dialog folder: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) ReorderFolders(ctx context.Context, userID int64, order []int) error {
+	if err := s.q.ReorderDialogFolders(ctx, sqlcgen.ReorderDialogFoldersParams{
+		UserID:    userID,
+		FilterIds: int32s(order),
+	}); err != nil {
+		return fmt.Errorf("reorder dialog folders: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) SetFolderTagsEnabled(ctx context.Context, userID int64, enabled bool) error {
+	if err := s.q.SetDialogFolderTags(ctx, sqlcgen.SetDialogFolderTagsParams{
+		UserID:      userID,
+		TagsEnabled: enabled,
+	}); err != nil {
+		return fmt.Errorf("set dialog folder tags: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) EditPeerFolders(ctx context.Context, userID int64, peers []domain.FolderPeerUpdate) error {
+	peerTypes := make([]string, 0, len(peers))
+	peerIDs := make([]int64, 0, len(peers))
+	folderIDs := make([]int32, 0, len(peers))
+	seen := make(map[domain.Peer]struct{}, len(peers))
+	for _, item := range peers {
+		if item.Peer.Type == "" || item.Peer.ID == 0 {
+			continue
+		}
+		if _, ok := seen[item.Peer]; ok {
+			continue
+		}
+		seen[item.Peer] = struct{}{}
+		peerTypes = append(peerTypes, string(item.Peer.Type))
+		peerIDs = append(peerIDs, item.Peer.ID)
+		folderIDs = append(folderIDs, pgInt32NonNegative(item.FolderID))
+	}
+	if len(peerTypes) == 0 {
+		return nil
+	}
+	if err := s.q.EditDialogPeerFolders(ctx, sqlcgen.EditDialogPeerFoldersParams{
+		UserID:    userID,
+		PeerTypes: peerTypes,
+		PeerIds:   peerIDs,
+		FolderIds: folderIDs,
+	}); err != nil {
+		return fmt.Errorf("edit dialog peer folders: %w", err)
+	}
+	return nil
+}
+
+func (s *DialogStore) SetArchivePinned(ctx context.Context, userID int64, pinned bool) (bool, error) {
+	changed, err := s.q.SetDialogArchivePinned(ctx, sqlcgen.SetDialogArchivePinnedParams{
+		UserID: userID,
+		Pinned: pinned,
+	})
+	if err != nil {
+		return false, fmt.Errorf("set dialog archive pinned: %w", err)
+	}
+	return changed, nil
+}
+
+func (s *DialogStore) ArchivePinned(ctx context.Context, userID int64) (bool, error) {
+	pinned, err := s.q.GetDialogArchivePinned(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// 官方默认 archive folder 行在置顶区。
+			return true, nil
+		}
+		return false, fmt.Errorf("get dialog archive pinned: %w", err)
+	}
+	return pinned, nil
+}
+
+func (s *DialogStore) CountArchiveUnread(ctx context.Context, userID int64) (int, int, error) {
+	row, err := s.q.CountArchiveUnreadDialogs(ctx, userID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("count archive unread dialogs: %w", err)
+	}
+	return int(row.UnreadPeers), int(row.UnreadMessages), nil
+}
+
+type dialogFolderParams struct {
+	contacts        bool
+	nonContacts     bool
+	excludeArchived bool
+	excludeRead     bool
+	includeTypes    []string
+	includeIDs      []int64
+	pinnedTypes     []string
+	pinnedIDs       []int64
+	excludeTypes    []string
+	excludeIDs      []int64
+}
+
+func dialogFolderQueryParams(folder *domain.DialogFolder) dialogFolderParams {
+	if folder == nil {
+		return dialogFolderParams{}
+	}
+	includeTypes, includeIDs := folderPeerArrays(folder.IncludePeers)
+	pinnedTypes, pinnedIDs := folderPeerArrays(folder.PinnedPeers)
+	excludeTypes, excludeIDs := folderPeerArrays(folder.ExcludePeers)
+	return dialogFolderParams{
+		contacts:        folder.Contacts,
+		nonContacts:     folder.NonContacts,
+		excludeArchived: folder.ExcludeArchived,
+		excludeRead:     folder.ExcludeRead,
+		includeTypes:    includeTypes,
+		includeIDs:      includeIDs,
+		pinnedTypes:     pinnedTypes,
+		pinnedIDs:       pinnedIDs,
+		excludeTypes:    excludeTypes,
+		excludeIDs:      excludeIDs,
+	}
+}
+
+func folderPeerArrays(peers []domain.DialogFolderPeer) ([]string, []int64) {
+	peerTypes := make([]string, 0, len(peers))
+	peerIDs := make([]int64, 0, len(peers))
+	seen := make(map[domain.Peer]struct{}, len(peers))
+	for _, item := range peers {
+		peer := item.Peer
+		if peer.Type == "" || peer.ID == 0 {
+			continue
+		}
+		if _, ok := seen[peer]; ok {
+			continue
+		}
+		seen[peer] = struct{}{}
+		peerTypes = append(peerTypes, string(peer.Type))
+		peerIDs = append(peerIDs, peer.ID)
+	}
+	return peerTypes, peerIDs
+}
+
+func decodeDialogFolder(data string) (domain.DialogFolder, error) {
+	if data == "" {
+		return domain.DialogFolder{}, nil
+	}
+	var folder domain.DialogFolder
+	if err := json.Unmarshal([]byte(data), &folder); err != nil {
+		return domain.DialogFolder{}, err
+	}
+	return folder, nil
+}
+
+func decodeDialogDrafts(rows []string) ([]domain.DialogDraft, error) {
+	out := make([]domain.DialogDraft, 0, len(rows))
+	for _, row := range rows {
+		draft, err := decodeDialogDraft(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, draft)
+	}
+	return out, nil
+}
+
+func decodeDialogDraft(data string) (domain.DialogDraft, error) {
+	if data == "" {
+		return domain.DialogDraft{}, nil
+	}
+	var draft domain.DialogDraft
+	if err := json.Unmarshal([]byte(data), &draft); err != nil {
+		return domain.DialogDraft{}, fmt.Errorf("decode dialog draft: %w", err)
+	}
+	if draft.Entities == nil {
+		draft.Entities = []domain.MessageEntity{}
+	}
+	return draft, nil
+}
+
+func clampDialogDraftLimit(limit int) int {
+	if limit <= 0 || limit > domain.MaxDialogDraftsPerUser {
+		return domain.MaxDialogDraftsPerUser
+	}
+	return limit
+}
+
+func peerArrays(peers []domain.Peer) ([]string, []int64) {
+	peerTypes := make([]string, 0, len(peers))
+	peerIDs := make([]int64, 0, len(peers))
+	seen := make(map[domain.Peer]struct{}, len(peers))
+	for _, peer := range peers {
+		if peer.Type == "" || peer.ID == 0 {
+			continue
+		}
+		if _, ok := seen[peer]; ok {
+			continue
+		}
+		seen[peer] = struct{}{}
+		peerTypes = append(peerTypes, string(peer.Type))
+		peerIDs = append(peerIDs, peer.ID)
+	}
+	return peerTypes, peerIDs
+}
+
+func dialogListHash(dialogs []domain.Dialog) int64 {
+	if len(dialogs) == 0 {
+		return 0
+	}
+	h := fnv.New64a()
+	var buf [47]byte
+	for _, d := range dialogs {
+		binary.LittleEndian.PutUint64(buf[:8], uint64(d.Peer.ID))
+		binary.LittleEndian.PutUint32(buf[8:12], uint32(d.FolderID))
+		binary.LittleEndian.PutUint32(buf[12:16], uint32(d.TopMessage))
+		binary.LittleEndian.PutUint32(buf[16:20], uint32(d.TopMessageDate))
+		binary.LittleEndian.PutUint32(buf[20:24], uint32(d.ReadInboxMaxID))
+		binary.LittleEndian.PutUint32(buf[24:28], uint32(d.ReadOutboxMaxID))
+		binary.LittleEndian.PutUint32(buf[28:32], uint32(d.UnreadCount))
+		binary.LittleEndian.PutUint32(buf[32:36], uint32(d.UnreadMentions))
+		binary.LittleEndian.PutUint32(buf[36:40], uint32(d.UnreadReactions))
+		if d.Pinned {
+			buf[40] = 1
+		} else {
+			buf[40] = 0
+		}
+		binary.LittleEndian.PutUint32(buf[41:45], uint32(d.PinnedOrder))
+		if d.UnreadMark {
+			buf[45] = 1
+		} else {
+			buf[45] = 0
+		}
+		if d.PeerSettingsBarHidden {
+			buf[46] = 1
+		} else {
+			buf[46] = 0
+		}
+		_, _ = h.Write(buf[:])
+		_, _ = h.Write([]byte(d.ThemeEmoticon))
+	}
+	return int64(h.Sum64())
+}
+
+// mixDialogListDependencyHash turns durable read-model version tokens into the
+// list hash without forcing the owner ordering scan to derive every mutable
+// dialog field. A token change is sufficient to reject an old client hash;
+// the page itself is then hydrated from the exact per-peer projection.
+func mixDialogListDependencyHash(base int64, dependencies ...int64) int64 {
+	if base == 0 && len(dependencies) == 0 {
+		return 0
+	}
+	h := fnv.New64a()
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(base))
+	_, _ = h.Write(buf[:])
+	for _, dependency := range dependencies {
+		binary.LittleEndian.PutUint64(buf[:], uint64(dependency))
+		_, _ = h.Write(buf[:])
+	}
+	sum := int64(h.Sum64() & 0x7fffffffffffffff)
+	if sum == 0 {
+		return 1
+	}
+	return sum
+}

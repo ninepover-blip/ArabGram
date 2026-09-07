@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS public.channel_delivery_attempts_open_fence_idx;
+DROP INDEX IF EXISTS public.edge_delivery_outbox_attempts_open_fence_idx;
+DROP INDEX IF EXISTS public.dispatch_outbox_attempts_open_fence_idx;

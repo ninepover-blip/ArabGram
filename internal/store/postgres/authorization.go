@@ -1,0 +1,752 @@
+package postgres
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"errors"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+
+	"telesrv/internal/domain"
+	"telesrv/internal/store"
+	"telesrv/internal/store/postgres/sqlcgen"
+)
+
+// AuthorizationStore 用 PostgreSQL 实现 store.AuthorizationStore。
+type AuthorizationStore struct {
+	db sqlcgen.DBTX
+	q  *sqlcgen.Queries
+}
+
+// NewAuthorizationStore 基于 pgx 连接池（或事务）创建 AuthorizationStore。
+func NewAuthorizationStore(db sqlcgen.DBTX) *AuthorizationStore {
+	return &AuthorizationStore{db: db, q: sqlcgen.New(db)}
+}
+
+func (s *AuthorizationStore) Bind(ctx context.Context, a domain.Authorization) error {
+	if a.Hash == 0 {
+		a.Hash = authorizationHash(a.AuthKeyID)
+	}
+	err := withAuthIdentityTx(ctx, s.db, "bind authorization", func(tx pgx.Tx) error {
+		return bindAuthorization(ctx, tx, a)
+	})
+	if err != nil {
+		return fmt.Errorf("upsert authorization: %w", err)
+	}
+	return nil
+}
+
+func (s *AuthorizationStore) BindWithDelivery(ctx context.Context, a domain.Authorization, user domain.User, build store.DeliveryEffectsBuilder[store.AuthorizationDeliverySnapshot]) error {
+	if build == nil {
+		return store.ErrDeliveryOutboxRequired
+	}
+	if user.ID <= 0 || (a.UserID != 0 && a.UserID != user.ID) {
+		return fmt.Errorf("bind authorization with delivery: user snapshot mismatch")
+	}
+	if a.Hash == 0 {
+		a.Hash = authorizationHash(a.AuthKeyID)
+	}
+	a.UserID = user.ID
+	err := withAuthIdentityTx(ctx, s.db, "bind authorization with delivery", func(tx pgx.Tx) error {
+		return bindAuthorizationTransition(ctx, tx, a, user, build, true)
+	})
+	if err != nil {
+		return fmt.Errorf("upsert authorization with delivery: %w", err)
+	}
+	return nil
+}
+
+// bindAuthorization 把 auth_key→user 绑定和设备 update baseline 作为同一个状态边界提交。
+//
+// 锁顺序固定为：目标 user advisory/row → auth_keys 母行 →
+// user_update_watermarks → user_update_retention → 目标 update_states。其中 watermark
+// 与 retention 两个 row lock 的顺序和 pruneConfirmedUserPrefixTx 一致，使新授权的
+// observed baseline 和 retained floor 不会交叉提交成静默空洞。母行锁又能在首次
+// authorization 尚不存在时串行化同一
+// raw auth key 的并发登录/换号。user 锁与账号 tombstone 使用同一顺序；因此 Bind
+// 要么先提交并被随后删除事务撤销，要么等删除提交后看见 tombstone 并拒绝，不能在
+// 删除事务枚举 authorization 之后重新绑定账号。
+func bindAuthorization(ctx context.Context, db sqlcgen.DBTX, a domain.Authorization) error {
+	return bindAuthorizationTransition(ctx, db, a, domain.User{}, nil, false)
+}
+
+func bindAuthorizationTransition(
+	ctx context.Context,
+	db sqlcgen.DBTX,
+	a domain.Authorization,
+	user domain.User,
+	build store.DeliveryEffectsBuilder[store.AuthorizationDeliverySnapshot],
+	idempotentDelivery bool,
+) error {
+	keyID := authKeyIDToInt64(a.AuthKeyID)
+	tx, ok := db.(pgx.Tx)
+	if !ok {
+		return fmt.Errorf("bind authorization requires a transaction")
+	}
+	if err := lockUsersForUpdate(ctx, tx, a.UserID); err != nil {
+		return fmt.Errorf("lock authorization user: %w", err)
+	}
+	var active bool
+	if err := db.QueryRow(ctx, `
+SELECT deleted_at IS NULL
+FROM users
+WHERE id = $1
+FOR UPDATE`, a.UserID).Scan(&active); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrUserNotFound
+		}
+		return fmt.Errorf("lock authorization user row: %w", err)
+	}
+	if !active {
+		return domain.ErrAccountDeleted
+	}
+	if err := lockPermanentAuthIdentities(ctx, tx, []int64{keyID}); err != nil {
+		return err
+	}
+	var (
+		lockedKeyID        int64
+		expiresAt          int
+		authLayer          int
+		layerObservationID int64
+	)
+	if err := db.QueryRow(ctx, `
+SELECT auth_key_id, expires_at, layer, layer_observation_id
+FROM auth_keys
+WHERE auth_key_id = $1
+FOR UPDATE`, keyID).Scan(&lockedKeyID, &expiresAt, &authLayer, &layerObservationID); err != nil {
+		return fmt.Errorf("lock auth key for authorization: %w", err)
+	}
+	if expiresAt != 0 {
+		return store.ErrAuthKeyNotPermanent
+	}
+	if authLayer < 0 || layerObservationID < 0 || (layerObservationID > 0 && authLayer == 0) {
+		return fmt.Errorf(
+			"authorization auth-key layer invariant violation: auth key %x has layer %d observation %d",
+			a.AuthKeyID, authLayer, layerObservationID,
+		)
+	}
+
+	var currentUserID int64
+	var currentPasswordPending, currentFound bool
+	if idempotentDelivery {
+		if err := db.QueryRow(ctx, `
+SELECT user_id, password_pending
+FROM authorizations
+WHERE auth_key_id = $1`, keyID).Scan(&currentUserID, &currentPasswordPending); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("read current authorization: %w", err)
+			}
+		} else {
+			currentFound = true
+		}
+	}
+	if idempotentDelivery && currentFound && currentUserID == a.UserID && currentPasswordPending == a.PasswordPending {
+		// The fully-authorized replay already owns its immutable notification;
+		// pending replay likewise preserves the original password challenge age.
+		return nil
+	}
+
+	if _, err := db.Exec(ctx, `
+INSERT INTO user_update_watermarks (user_id, contiguous_pts)
+VALUES ($1, 0)
+ON CONFLICT (user_id) DO NOTHING`, a.UserID); err != nil {
+		return fmt.Errorf("ensure authorization user update watermark: %w", err)
+	}
+	var currentPts int
+	if err := db.QueryRow(ctx, `
+SELECT contiguous_pts
+FROM user_update_watermarks
+WHERE user_id = $1
+FOR UPDATE`, a.UserID).Scan(&currentPts); err != nil {
+		return fmt.Errorf("lock authorization user update watermark: %w", err)
+	}
+	if _, err := db.Exec(ctx, `
+INSERT INTO user_update_retention (user_id)
+VALUES ($1)
+ON CONFLICT (user_id) DO NOTHING`, a.UserID); err != nil {
+		return fmt.Errorf("ensure authorization user update retention: %w", err)
+	}
+	var retainedFloor int
+	if err := db.QueryRow(ctx, `
+SELECT retained_through_pts
+FROM user_update_retention
+WHERE user_id = $1
+FOR UPDATE`, a.UserID).Scan(&retainedFloor); err != nil {
+		return fmt.Errorf("lock authorization user update retention: %w", err)
+	}
+	if retainedFloor > currentPts {
+		return fmt.Errorf(
+			"authorization update baseline invariant violation: user %d retained floor %d exceeds contiguous watermark %d",
+			a.UserID, retainedFloor, currentPts,
+		)
+	}
+
+	// 每次 Bind 都是一次显式登录 baseline：delivered pts 推进到已锁定的账号连续水位；
+	// observed 只推进到已删除的 retained floor，不把 live tail 伪装成客户端确认。
+	// 历史遗留的 state 若超出账号 contiguous watermark，必须 fail-fast；不得用
+	// GREATEST 把非法 future cursor 保留下来。WHERE 也封住“预检后并发插入”的竞态。
+	tag, err := db.Exec(ctx, `
+INSERT INTO update_states (auth_key_id, user_id, pts, qts, date, seq, observed_pts)
+VALUES ($1, $2, $3, 0, EXTRACT(EPOCH FROM now())::int, 0, $4)
+ON CONFLICT (auth_key_id, user_id) DO UPDATE SET
+  pts = GREATEST(update_states.pts, EXCLUDED.pts),
+  qts = GREATEST(update_states.qts, EXCLUDED.qts),
+  date = GREATEST(update_states.date, EXCLUDED.date),
+  seq = GREATEST(update_states.seq, EXCLUDED.seq),
+  observed_pts = GREATEST(update_states.observed_pts, EXCLUDED.observed_pts),
+  updated_at = now()
+WHERE update_states.pts >= 0
+  AND update_states.pts <= $3
+  AND update_states.observed_pts <= $3`, keyID, a.UserID, currentPts, retainedFloor)
+	if err != nil {
+		return fmt.Errorf("upsert authorization update baseline: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf(
+			"authorization update baseline invariant violation: auth key %x user %d has pts or observed_pts outside contiguous watermark %d",
+			a.AuthKeyID, a.UserID, currentPts,
+		)
+	}
+
+	if _, err := db.Exec(ctx, `
+DELETE FROM update_states
+WHERE auth_key_id = $1
+  AND user_id <> $2`, keyID, a.UserID); err != nil {
+		return fmt.Errorf("delete stale cross-user update states: %w", err)
+	}
+
+	if _, err := db.Exec(ctx, `
+INSERT INTO authorizations (auth_key_id, user_id, hash, layer, device_model, platform, system_version, api_id, app_version, ip, password_pending)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+ON CONFLICT (auth_key_id) DO UPDATE SET
+  user_id = EXCLUDED.user_id,
+  hash = EXCLUDED.hash,
+  layer = EXCLUDED.layer,
+  device_model = EXCLUDED.device_model,
+  platform = EXCLUDED.platform,
+  system_version = EXCLUDED.system_version,
+  api_id = EXCLUDED.api_id,
+  app_version = EXCLUDED.app_version,
+  ip = EXCLUDED.ip,
+  password_pending = EXCLUDED.password_pending,
+	created_at = now(),
+  active_at = now()`,
+		keyID, a.UserID, a.Hash, int32(authLayer), a.DeviceModel, a.Platform, a.SystemVersion, int32(a.APIID), a.AppVersion, a.IP, a.PasswordPending,
+	); err != nil {
+		return fmt.Errorf("write authorization: %w", err)
+	}
+	if idempotentDelivery && !a.PasswordPending && (!currentFound || currentUserID != a.UserID || currentPasswordPending) {
+		a.Layer = authLayer
+		effects, err := build(store.AuthorizationDeliverySnapshot{Authorization: a, User: user})
+		if err != nil {
+			return fmt.Errorf("build authorization delivery: %w", err)
+		}
+		if err := store.ValidateAuthorizationDeliveryEffects(a.UserID, effects); err != nil {
+			return fmt.Errorf("validate authorization delivery: %w", err)
+		}
+		if err := applyAbsoluteDeliveryEffectsTx(ctx, tx, effects); err != nil {
+			return fmt.Errorf("write authorization delivery: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *AuthorizationStore) ByAuthKey(ctx context.Context, id [8]byte) (domain.Authorization, bool, error) {
+	row := s.db.QueryRow(ctx, `
+SELECT user_id, hash, layer, device_model, platform, system_version, api_id, app_version, ip, password_pending, created_at, active_at
+FROM authorizations WHERE auth_key_id = $1`, authKeyIDToInt64(id))
+	a := domain.Authorization{AuthKeyID: id}
+	if err := row.Scan(
+		&a.UserID, &a.Hash, &a.Layer, &a.DeviceModel, &a.Platform, &a.SystemVersion,
+		&a.APIID, &a.AppVersion, &a.IP, &a.PasswordPending, &a.CreatedAt, &a.ActiveAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Authorization{}, false, nil
+		}
+		return domain.Authorization{}, false, fmt.Errorf("get authorization: %w", err)
+	}
+	return a, true, nil
+}
+
+func (s *AuthorizationStore) UpdateClientInfo(ctx context.Context, id [8]byte, info domain.AuthKeyClientInfo) error {
+	if _, err := s.db.Exec(ctx, `
+UPDATE authorizations SET
+  layer = CASE WHEN $2 > 0 THEN $2 ELSE layer END,
+  device_model = CASE WHEN $3 <> '' THEN $3 ELSE device_model END,
+  platform = CASE WHEN $4 <> '' THEN $4 ELSE platform END,
+  system_version = CASE WHEN $5 <> '' THEN $5 ELSE system_version END,
+  api_id = CASE WHEN $6 <> 0 THEN $6 ELSE api_id END,
+  app_version = CASE WHEN $7 <> '' THEN $7 ELSE app_version END,
+  active_at = now()
+WHERE auth_key_id = $1`,
+		authKeyIDToInt64(id), int32(info.Layer), info.DeviceModel, info.Platform,
+		info.SystemVersion, int32(info.APIID), info.AppVersion,
+	); err != nil {
+		return fmt.Errorf("update authorization client info: %w", err)
+	}
+	return nil
+}
+
+// MarkPasswordPassed atomically promotes only the pending identity whose
+// password was just verified. A concurrent cross-user Bind must not let A's
+// proof clear B's password_pending flag.
+func (s *AuthorizationStore) MarkPasswordPassed(ctx context.Context, id [8]byte, expectedUserID int64) error {
+	tag, err := s.db.Exec(ctx, `
+	UPDATE authorizations SET password_pending = false, created_at = now(), active_at = now()
+	WHERE auth_key_id = $1 AND user_id = $2 AND password_pending`, authKeyIDToInt64(id), expectedUserID)
+	if err != nil {
+		return fmt.Errorf("mark authorization password passed: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return store.ErrAuthorizationStateChanged
+	}
+	return nil
+}
+
+func (s *AuthorizationStore) MarkPasswordPassedWithDelivery(ctx context.Context, id [8]byte, expectedUser domain.User, build store.DeliveryEffectsBuilder[store.AuthorizationDeliverySnapshot]) error {
+	if build == nil {
+		return store.ErrDeliveryOutboxRequired
+	}
+	if expectedUser.ID <= 0 {
+		return store.ErrAuthorizationStateChanged
+	}
+	err := withAuthIdentityTx(ctx, s.db, "complete password authorization with delivery", func(tx pgx.Tx) error {
+		if err := lockUsersForUpdate(ctx, tx, expectedUser.ID); err != nil {
+			return fmt.Errorf("lock password authorization user: %w", err)
+		}
+		var active bool
+		if err := tx.QueryRow(ctx, `
+SELECT deleted_at IS NULL
+FROM users
+WHERE id = $1
+FOR UPDATE`, expectedUser.ID).Scan(&active); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return domain.ErrUserNotFound
+			}
+			return fmt.Errorf("lock password authorization user row: %w", err)
+		}
+		if !active {
+			return domain.ErrAccountDeleted
+		}
+		keyID := authKeyIDToInt64(id)
+		if err := lockPermanentAuthIdentities(ctx, tx, []int64{keyID}); err != nil {
+			return err
+		}
+		var lockedKeyID int64
+		if err := tx.QueryRow(ctx, `
+SELECT auth_key_id
+FROM auth_keys
+WHERE auth_key_id = $1
+FOR UPDATE`, keyID).Scan(&lockedKeyID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return store.ErrAuthorizationStateChanged
+			}
+			return fmt.Errorf("lock password authorization auth key: %w", err)
+		}
+
+		a := domain.Authorization{AuthKeyID: id}
+		if err := tx.QueryRow(ctx, `
+SELECT user_id, hash, layer, device_model, platform, system_version, api_id,
+       app_version, ip, password_pending, created_at, active_at
+FROM authorizations
+WHERE auth_key_id = $1
+FOR UPDATE`, keyID).Scan(
+			&a.UserID, &a.Hash, &a.Layer, &a.DeviceModel, &a.Platform, &a.SystemVersion,
+			&a.APIID, &a.AppVersion, &a.IP, &a.PasswordPending, &a.CreatedAt, &a.ActiveAt,
+		); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return store.ErrAuthorizationStateChanged
+			}
+			return fmt.Errorf("lock password authorization: %w", err)
+		}
+		if a.UserID != expectedUser.ID {
+			return store.ErrAuthorizationStateChanged
+		}
+		if !a.PasswordPending {
+			// Same-user completion replay is already committed and must not append
+			// another absolute notification.
+			return nil
+		}
+		tag, err := tx.Exec(ctx, `
+UPDATE authorizations
+SET password_pending = false, created_at = now(), active_at = now()
+WHERE auth_key_id = $1 AND user_id = $2 AND password_pending`, keyID, expectedUser.ID)
+		if err != nil {
+			return fmt.Errorf("mark authorization password passed: %w", err)
+		}
+		if tag.RowsAffected() != 1 {
+			return store.ErrAuthorizationStateChanged
+		}
+		a.PasswordPending = false
+		effects, err := build(store.AuthorizationDeliverySnapshot{Authorization: a, User: expectedUser})
+		if err != nil {
+			return fmt.Errorf("build password authorization delivery: %w", err)
+		}
+		if err := store.ValidateAuthorizationDeliveryEffects(expectedUser.ID, effects); err != nil {
+			return fmt.Errorf("validate password authorization delivery: %w", err)
+		}
+		if err := applyAbsoluteDeliveryEffectsTx(ctx, tx, effects); err != nil {
+			return fmt.Errorf("write password authorization delivery: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("complete password authorization with delivery: %w", err)
+	}
+	return nil
+}
+
+func (s *AuthorizationStore) ListByUser(ctx context.Context, userID int64) ([]domain.Authorization, error) {
+	rows, err := s.q.ListAuthorizationsByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list authorizations by user: %w", err)
+	}
+	out := make([]domain.Authorization, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, authorizationFromRow(row))
+	}
+	return out, nil
+}
+
+func (s *AuthorizationStore) Delete(ctx context.Context, id [8]byte) error {
+	if err := s.q.DeleteAuthorization(ctx, authKeyIDToInt64(id)); err != nil {
+		return fmt.Errorf("delete authorization: %w", err)
+	}
+	return nil
+}
+
+func (s *AuthorizationStore) DeleteByHash(ctx context.Context, userID, hash int64) (domain.Authorization, bool, error) {
+	row := s.db.QueryRow(ctx, `
+DELETE FROM authorizations
+WHERE user_id = $1 AND hash = $2
+RETURNING auth_key_id, user_id, hash, layer, device_model, platform, system_version, api_id, app_version, ip, created_at, active_at`, userID, hash)
+	var a domain.Authorization
+	var authKeyID int64
+	if err := row.Scan(
+		&authKeyID, &a.UserID, &a.Hash, &a.Layer, &a.DeviceModel, &a.Platform, &a.SystemVersion,
+		&a.APIID, &a.AppVersion, &a.IP, &a.CreatedAt, &a.ActiveAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Authorization{}, false, nil
+		}
+		return domain.Authorization{}, false, fmt.Errorf("delete authorization by hash: %w", err)
+	}
+	a.AuthKeyID = authKeyIDFromInt64(authKeyID)
+	return a, true, nil
+}
+
+// RevokeByHash 是远程踢设备的持久化事实入口：删除业务 authorization 与
+// device update state，但保留 permanent/temp 协议 key 和 binding。这样被踢客户端
+// 重连后仍可完成 MTProto 解密，并由 RPC gate 返回 AUTH_KEY_UNREGISTERED；若先删除
+// 协议 key，客户端只能收到 transport -404，无法可靠清理本地登录态。
+func (s *AuthorizationStore) RevokeByHash(ctx context.Context, userID, hash int64) (domain.Authorization, bool, error) {
+	var (
+		a     domain.Authorization
+		found bool
+	)
+	err := withAuthIdentityTx(ctx, s.db, "revoke authorization by hash", func(tx pgx.Tx) error {
+		var err error
+		a, found, err = revokeByHashTx(ctx, tx, userID, hash)
+		return err
+	})
+	if err != nil {
+		return domain.Authorization{}, false, err
+	}
+	return a, found, nil
+}
+
+// revokeByHashTx deliberately uses separate READ COMMITTED statements. The first
+// lookup is only a candidate. Bind locks auth_keys before changing authorization
+// ownership, so revocation must lock the same parent row and then re-read the
+// owner/hash from a fresh statement snapshot. Otherwise an A->B re-login that
+// commits while revoke waits can be deleted using A's stale target snapshot.
+func revokeByHashTx(ctx context.Context, tx pgx.Tx, userID, hash int64) (domain.Authorization, bool, error) {
+	var candidate int64
+	if err := tx.QueryRow(ctx, `
+SELECT auth_key_id
+FROM authorizations
+WHERE user_id = $1 AND hash = $2`, userID, hash).Scan(&candidate); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Authorization{}, false, nil
+		}
+		return domain.Authorization{}, false, fmt.Errorf("select revoke candidate by hash: %w", err)
+	}
+	if err := lockPermanentAuthIdentities(ctx, tx, []int64{candidate}); err != nil {
+		return domain.Authorization{}, false, err
+	}
+
+	var locked int64
+	if err := tx.QueryRow(ctx, `
+SELECT auth_key_id
+FROM auth_keys
+WHERE auth_key_id = $1
+FOR UPDATE`, candidate).Scan(&locked); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Authorization{}, false, nil
+		}
+		return domain.Authorization{}, false, fmt.Errorf("lock revoke auth key by hash: %w", err)
+	}
+
+	a, found, err := scanRevokedAuthorization(tx.QueryRow(ctx, `
+SELECT auth_key_id, user_id, hash, layer, device_model, platform, system_version,
+       api_id, app_version, ip, password_pending, created_at, active_at
+FROM authorizations
+WHERE auth_key_id = $1 AND user_id = $2 AND hash = $3
+FOR UPDATE`, candidate, userID, hash))
+	if err != nil {
+		return domain.Authorization{}, false, fmt.Errorf("revalidate revoke authorization by hash: %w", err)
+	}
+	if !found {
+		return domain.Authorization{}, false, nil
+	}
+	if err := deleteRevokedAuthorizationStateTx(ctx, tx, []int64{candidate}); err != nil {
+		return domain.Authorization{}, false, err
+	}
+	return a, true, nil
+}
+
+func (s *AuthorizationStore) DeleteByUserExcept(ctx context.Context, userID int64, keepAuthKeyID [8]byte) ([]domain.Authorization, error) {
+	rows, err := s.db.Query(ctx, `
+DELETE FROM authorizations
+WHERE user_id = $1 AND auth_key_id <> $2
+RETURNING auth_key_id, user_id, hash, layer, device_model, platform, system_version, api_id, app_version, ip, created_at, active_at`, userID, authKeyIDToInt64(keepAuthKeyID))
+	if err != nil {
+		return nil, fmt.Errorf("delete authorizations by user: %w", err)
+	}
+	defer rows.Close()
+	out := make([]domain.Authorization, 0)
+	for rows.Next() {
+		var a domain.Authorization
+		var authKeyID int64
+		if err := rows.Scan(
+			&authKeyID, &a.UserID, &a.Hash, &a.Layer, &a.DeviceModel, &a.Platform, &a.SystemVersion,
+			&a.APIID, &a.AppVersion, &a.IP, &a.CreatedAt, &a.ActiveAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan deleted authorization: %w", err)
+		}
+		a.AuthKeyID = authKeyIDFromInt64(authKeyID)
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate deleted authorizations: %w", err)
+	}
+	return out, nil
+}
+
+// RevokeByUserExcept 批量删除业务 authorization，保留 keepAuthKeyID 对应的当前设备；
+// 被撤销设备的协议 key/binding 保留，以便重连后取得 RPC 401 并完成客户端退出。
+func (s *AuthorizationStore) RevokeByUserExcept(ctx context.Context, userID int64, keepAuthKeyID [8]byte) ([]domain.Authorization, error) {
+	var out []domain.Authorization
+	err := withAuthIdentityTx(ctx, s.db, "revoke authorizations by user", func(tx pgx.Tx) error {
+		var err error
+		out, err = revokeByUserExceptTx(ctx, tx, userID, authKeyIDToInt64(keepAuthKeyID))
+		return err
+	})
+	return out, err
+}
+
+func revokeByUserExceptTx(ctx context.Context, tx pgx.Tx, userID, keepAuthKeyID int64) ([]domain.Authorization, error) {
+	candidateRows, err := tx.Query(ctx, `
+SELECT auth_key_id
+FROM authorizations
+WHERE user_id = $1 AND auth_key_id <> $2
+ORDER BY auth_key_id`, userID, keepAuthKeyID)
+	if err != nil {
+		return nil, fmt.Errorf("select revoke candidates by user: %w", err)
+	}
+	candidates := make([]int64, 0)
+	for candidateRows.Next() {
+		var id int64
+		if err := candidateRows.Scan(&id); err != nil {
+			candidateRows.Close()
+			return nil, fmt.Errorf("scan revoke candidate by user: %w", err)
+		}
+		candidates = append(candidates, id)
+	}
+	if err := candidateRows.Err(); err != nil {
+		candidateRows.Close()
+		return nil, fmt.Errorf("iterate revoke candidates by user: %w", err)
+	}
+	candidateRows.Close()
+	if len(candidates) == 0 {
+		return []domain.Authorization{}, nil
+	}
+	if err := lockPermanentAuthIdentities(ctx, tx, candidates); err != nil {
+		return nil, err
+	}
+
+	// Advisory keys are already all held in final int32-hash order. Parent rows
+	// are then locked by their real bigint IDs for deterministic batch behavior.
+	lockRows, err := tx.Query(ctx, `
+SELECT auth_key_id
+FROM auth_keys
+WHERE auth_key_id = ANY($1::bigint[])
+ORDER BY auth_key_id
+FOR UPDATE`, candidates)
+	if err != nil {
+		return nil, fmt.Errorf("lock revoke auth keys by user: %w", err)
+	}
+	for lockRows.Next() {
+		var ignored int64
+		if err := lockRows.Scan(&ignored); err != nil {
+			lockRows.Close()
+			return nil, fmt.Errorf("scan locked revoke auth key: %w", err)
+		}
+	}
+	if err := lockRows.Err(); err != nil {
+		lockRows.Close()
+		return nil, fmt.Errorf("iterate locked revoke auth keys: %w", err)
+	}
+	lockRows.Close()
+
+	// This is intentionally a new statement snapshot after all parent locks.
+	// Keys that changed owner while waiting are omitted and must remain intact.
+	rows, err := tx.Query(ctx, `
+SELECT auth_key_id, user_id, hash, layer, device_model, platform, system_version,
+       api_id, app_version, ip, password_pending, created_at, active_at
+FROM authorizations
+WHERE user_id = $1
+  AND auth_key_id <> $2
+  AND auth_key_id = ANY($3::bigint[])
+ORDER BY created_at, auth_key_id
+FOR UPDATE`, userID, keepAuthKeyID, candidates)
+	if err != nil {
+		return nil, fmt.Errorf("revalidate revoke authorizations by user: %w", err)
+	}
+	out := make([]domain.Authorization, 0)
+	for rows.Next() {
+		a, err := scanRevokedAuthorizationRow(rows)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate revoked authorizations: %w", err)
+	}
+	rows.Close()
+	if len(out) == 0 {
+		return out, nil
+	}
+	targets := make([]int64, len(out))
+	for i := range out {
+		targets[i] = authKeyIDToInt64(out[i].AuthKeyID)
+	}
+	if err := deleteRevokedAuthorizationStateTx(ctx, tx, targets); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func deleteRevokedAuthorizationStateTx(ctx context.Context, tx pgx.Tx, authKeyIDs []int64) error {
+	if len(authKeyIDs) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+DELETE FROM update_states
+WHERE auth_key_id = ANY($1::bigint[])`, authKeyIDs); err != nil {
+		return fmt.Errorf("delete revoked update states: %w", err)
+	}
+	tag, err := tx.Exec(ctx, `
+DELETE FROM authorizations
+WHERE auth_key_id = ANY($1::bigint[])`, authKeyIDs)
+	if err != nil {
+		return fmt.Errorf("delete revoked authorizations: %w", err)
+	}
+	if tag.RowsAffected() != int64(len(authKeyIDs)) {
+		return fmt.Errorf("delete revoked authorizations: deleted %d of %d locked targets", tag.RowsAffected(), len(authKeyIDs))
+	}
+	return nil
+}
+
+// deleteProtocolAuthIdentitiesTx permanently removes permanent identities and
+// their derived temp keys. Remote account.resetAuthorization/
+// auth.resetAuthorizations must not use this helper: those clients need the
+// protocol key long enough to reconnect and receive an RPC-level 401.
+func deleteProtocolAuthIdentitiesTx(ctx context.Context, tx pgx.Tx, authKeyIDs []int64) error {
+	if len(authKeyIDs) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+DELETE FROM auth_keys
+WHERE auth_key_id IN (
+	SELECT temp_auth_key_id
+	FROM temp_auth_key_bindings
+	WHERE perm_auth_key_id = ANY($1::bigint[])
+)`, authKeyIDs); err != nil {
+		return fmt.Errorf("delete temporary auth keys: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+DELETE FROM update_states
+WHERE auth_key_id = ANY($1::bigint[])`, authKeyIDs); err != nil {
+		return fmt.Errorf("delete protocol identity update states: %w", err)
+	}
+	tag, err := tx.Exec(ctx, `
+DELETE FROM auth_keys
+WHERE auth_key_id = ANY($1::bigint[])`, authKeyIDs)
+	if err != nil {
+		return fmt.Errorf("delete permanent auth keys: %w", err)
+	}
+	if tag.RowsAffected() != int64(len(authKeyIDs)) {
+		return fmt.Errorf("delete permanent auth keys: deleted %d of %d locked targets", tag.RowsAffected(), len(authKeyIDs))
+	}
+	return nil
+}
+
+func authorizationFromRow(row sqlcgen.Authorization) domain.Authorization {
+	return domain.Authorization{
+		AuthKeyID:     authKeyIDFromInt64(row.AuthKeyID),
+		UserID:        row.UserID,
+		Hash:          row.Hash,
+		Layer:         int(row.Layer),
+		DeviceModel:   row.DeviceModel,
+		Platform:      row.Platform,
+		SystemVersion: row.SystemVersion,
+		APIID:         int(row.ApiID),
+		AppVersion:    row.AppVersion,
+		IP:            row.Ip,
+		CreatedAt:     row.CreatedAt.Time,
+		ActiveAt:      row.ActiveAt.Time,
+	}
+}
+
+type authorizationScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRevokedAuthorization(row authorizationScanner) (domain.Authorization, bool, error) {
+	a, err := scanRevokedAuthorizationRow(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Authorization{}, false, nil
+		}
+		return domain.Authorization{}, false, err
+	}
+	return a, true, nil
+}
+
+func scanRevokedAuthorizationRow(row authorizationScanner) (domain.Authorization, error) {
+	var a domain.Authorization
+	var authKeyID int64
+	if err := row.Scan(
+		&authKeyID, &a.UserID, &a.Hash, &a.Layer, &a.DeviceModel, &a.Platform, &a.SystemVersion,
+		&a.APIID, &a.AppVersion, &a.IP, &a.PasswordPending, &a.CreatedAt, &a.ActiveAt,
+	); err != nil {
+		return domain.Authorization{}, err
+	}
+	a.AuthKeyID = authKeyIDFromInt64(authKeyID)
+	return a, nil
+}
+
+func authorizationHash(authKeyID [8]byte) int64 {
+	sum := sha256.Sum256(authKeyID[:])
+	hash := int64(binary.LittleEndian.Uint64(sum[:8]))
+	if hash == 0 {
+		return 1
+	}
+	return hash
+}

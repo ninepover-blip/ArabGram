@@ -1,0 +1,21 @@
+version: 1
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+
+admin:
+  ui:
+    addr: 127.0.0.1:2600
+    password: ${TELESRV_ADMIN_UI_PASSWORD}
+    token: ${TELESRV_ADMIN_UI_TOKEN}
+    session_key: ${TELESRV_ADMIN_SESSION_KEY}
+    permissions:
+      - "*"
+  api:
+    addr: 127.0.0.1:2599
+    token: ${TELESRV_ADMIN_API_TOKEN}
+
+storage:
+  blob_backend: localfs
+  blob_dir: data/blobs
+  blob_staging_dir: data/blob-staging

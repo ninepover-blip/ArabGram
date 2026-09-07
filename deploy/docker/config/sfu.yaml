@@ -1,0 +1,41 @@
+version: 1
+
+instance:
+  id: ${TELESRV_INSTANCE_ID}
+
+debug:
+  addr: 127.0.0.1:6064
+
+public:
+  advertise:
+    ip: ${TELESRV_ADVERTISE_IP}
+
+redis:
+  addr: ${TELESRV_REDIS_ADDR}
+  password: ${TELESRV_REDIS_PASSWORD}
+  db: 0
+
+sfu:
+  udp_port: ${TELESRV_SFU_UDP_PORT}
+  bind_ip: "${TELESRV_SFU_BIND_IP}"
+  advertise_ip: ${TELESRV_ADVERTISE_IP}
+  instance_ttl: 90s
+  instance_heartbeat_interval: 30s
+  max_active_calls: 0
+  control:
+    addr: 0.0.0.0:2450
+    url: ${TELESRV_SFU_CONTROL_GRPC_URL}
+    token: ${TELESRV_SFU_CONTROL_TOKEN}
+
+turn:
+  enabled: ${TELESRV_TURN_ENABLE}
+  udp_port: ${TELESRV_TURN_UDP_PORT}
+  bind_ip: "${TELESRV_TURN_BIND_IP}"
+  advertise_ip: "${TELESRV_TURN_ADVERTISE_IP}"
+  secret: "${TELESRV_TURN_SECRET}"
+  relay_min_port: ${TELESRV_TURN_RELAY_MIN_PORT}
+  relay_max_port: ${TELESRV_TURN_RELAY_MAX_PORT}
+
+group_call:
+  control_url: ${TELESRV_GROUPCALL_CONTROL_URL}
+  control_token: ${TELESRV_GROUPCALL_CONTROL_TOKEN}

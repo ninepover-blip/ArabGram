@@ -1,0 +1,187 @@
+package memory
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"telesrv/internal/domain"
+	"telesrv/internal/store"
+	"time"
+)
+
+func (s *MessageStore) ReadMessageContents(_ context.Context, req domain.ReadMessageContentsRequest) (domain.ReadMessageContentsResult, error) {
+	res := domain.ReadMessageContentsResult{OwnerUserID: req.OwnerUserID}
+	if req.OwnerUserID == 0 {
+		return res, fmt.Errorf("read message contents: missing owner user id")
+	}
+	if len(req.IDs) > domain.MaxGetMessageIDs {
+		return res, domain.ErrMessageIDInvalid
+	}
+	wanted := make(map[int]struct{}, len(req.IDs))
+	for _, id := range req.IDs {
+		if id <= 0 || id > domain.MaxMessageBoxID {
+			return res, domain.ErrMessageIDInvalid
+		}
+		wanted[id] = struct{}{}
+	}
+	if len(wanted) == 0 {
+		return res, nil
+	}
+	if req.Date == 0 {
+		req.Date = int(time.Now().Unix())
+	}
+	if (req.OriginAuthKeyID == ([8]byte{})) != (req.OriginSessionID == 0) {
+		return res, fmt.Errorf("read message contents: origin exclusion requires both raw auth key and session id")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	events := s.updateEvents
+	if events == nil {
+		return res, store.ErrDeliveryOutboxRequired
+	}
+	if s.dialogs != nil {
+		s.dialogs.mu.Lock()
+		defer s.dialogs.mu.Unlock()
+	}
+	events.mu.Lock()
+	defer events.mu.Unlock()
+	reactionUIDs := make(map[int64]struct{})
+	senderUIDs := make(map[int64]map[int64]struct{})
+	for i := range s.m[req.OwnerUserID] {
+		msg := &s.m[req.OwnerUserID][i]
+		if _, ok := wanted[msg.ID]; !ok {
+			continue
+		}
+		if !msg.MediaUnread && !msg.ReactionUnread {
+			continue
+		}
+		if msg.ReactionUnread && msg.Peer.ID != 0 {
+			reactionUIDs[msg.UID] = struct{}{}
+		}
+		if msg.MediaUnread && !msg.Out && msg.From.Type == domain.PeerTypeUser && msg.From.ID != 0 && msg.From.ID != req.OwnerUserID {
+			if senderUIDs[msg.From.ID] == nil {
+				senderUIDs[msg.From.ID] = make(map[int64]struct{})
+			}
+			senderUIDs[msg.From.ID][msg.UID] = struct{}{}
+		}
+		msg.MediaUnread = false
+		msg.ReactionUnread = false
+		res.MessageIDs = append(res.MessageIDs, msg.ID)
+	}
+	sort.Ints(res.MessageIDs)
+	if len(res.MessageIDs) == 0 {
+		return res, nil
+	}
+	senderIDs := make([]int64, 0, len(senderUIDs))
+	for senderID := range senderUIDs {
+		senderIDs = append(senderIDs, senderID)
+	}
+	sort.Slice(senderIDs, func(i, j int) bool { return senderIDs[i] < senderIDs[j] })
+	for _, senderID := range senderIDs {
+		boxIDs := make([]int, 0, len(senderUIDs[senderID]))
+		for i := range s.m[senderID] {
+			msg := &s.m[senderID][i]
+			if _, ok := senderUIDs[senderID][msg.UID]; !ok || !msg.Out || !msg.MediaUnread {
+				continue
+			}
+			msg.MediaUnread = false
+			boxIDs = append(boxIDs, msg.ID)
+		}
+		if len(boxIDs) == 0 {
+			continue
+		}
+		sort.Ints(boxIDs)
+		event := domain.UpdateEvent{
+			UserID:     senderID,
+			Type:       domain.UpdateEventReadMessageContents,
+			PtsCount:   len(boxIDs),
+			Date:       req.Date,
+			MessageIDs: boxIDs,
+		}
+		event = appendMemoryAllocatedMessageEventLocked(s, events, senderID, event, [8]byte{}, 0)
+		res.SenderEvents = append(res.SenderEvents, event)
+	}
+	for uid := range reactionUIDs {
+		s.refreshPrivateReactionDialogSnapshotsWithDialogLocked(uid)
+	}
+	res.Event = domain.UpdateEvent{
+		UserID:     req.OwnerUserID,
+		Type:       domain.UpdateEventReadMessageContents,
+		PtsCount:   len(res.MessageIDs),
+		Date:       req.Date,
+		MessageIDs: append([]int(nil), res.MessageIDs...),
+	}
+	res.Event = appendMemoryAllocatedMessageEventLocked(s, events, req.OwnerUserID, res.Event, req.OriginAuthKeyID, req.OriginSessionID)
+	return res, nil
+}
+
+func (s *MessageStore) GetOutboxReadDate(_ context.Context, req domain.OutboxReadDateRequest) (int, error) {
+	if req.OwnerUserID == 0 || req.Peer.Type != domain.PeerTypeUser || req.Peer.ID == 0 || req.ID <= 0 || req.ID > domain.MaxMessageBoxID {
+		return 0, domain.ErrMessageIDInvalid
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	found := false
+	for _, msg := range s.m[req.OwnerUserID] {
+		if msg.ID == req.ID && msg.Peer == req.Peer && msg.Out {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return 0, domain.ErrMessageIDInvalid
+	}
+	date := s.readOutboxDates[readOutboxDateKey{ownerUserID: req.OwnerUserID, peerID: req.Peer.ID, msgID: req.ID}]
+	if date == 0 {
+		return 0, domain.ErrMessageNotReadYet
+	}
+	return date, nil
+}
+
+// ListUnreadReactionMessages 返回当前 owner 在该 peer 下 reaction_unread 的消息。
+func (s *MessageStore) ListUnreadReactionMessages(_ context.Context, ownerUserID int64, peer domain.Peer, limit int) ([]domain.Message, error) {
+	if ownerUserID == 0 || peer.Type != domain.PeerTypeUser || peer.ID == 0 {
+		return nil, nil
+	}
+	if limit <= 0 || limit > domain.MaxChannelUnreadReactionsLimit {
+		limit = domain.MaxChannelUnreadReactionsLimit
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]domain.Message, 0, limit)
+	messages := s.m[ownerUserID]
+	for i := len(messages) - 1; i >= 0 && len(out) < limit; i-- {
+		msg := messages[i]
+		if msg.Peer != peer || !msg.ReactionUnread {
+			continue
+		}
+		out = append(out, cloneMessage(msg))
+	}
+	return out, nil
+}
+
+// ReadPeerReactions 清理当前 owner 在该 peer 下的全部未读 reaction 状态。
+func (s *MessageStore) ReadPeerReactions(_ context.Context, ownerUserID int64, peer domain.Peer) (int, error) {
+	if ownerUserID == 0 || peer.Type != domain.PeerTypeUser || peer.ID == 0 {
+		return 0, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cleared := 0
+	reactionUIDs := make(map[int64]struct{})
+	for i := range s.m[ownerUserID] {
+		msg := &s.m[ownerUserID][i]
+		if msg.Peer != peer || !msg.ReactionUnread {
+			continue
+		}
+		msg.ReactionUnread = false
+		reactionUIDs[msg.UID] = struct{}{}
+		cleared++
+	}
+	if cleared > 0 {
+		for uid := range reactionUIDs {
+			s.refreshPrivateReactionDialogSnapshotsLocked(uid)
+		}
+	}
+	return cleared, nil
+}

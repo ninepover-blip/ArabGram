@@ -1,0 +1,3 @@
+-- No-op: URL media index rows are derived data shared by normal writes and this
+-- backfill. Removing only the backfilled rows cannot be done safely without
+-- deleting valid post-migration index rows.

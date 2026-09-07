@@ -1,0 +1,47 @@
+version: 1
+
+instance:
+  id: ${TELESRV_INSTANCE_ID}
+
+debug:
+  addr: 127.0.0.1:6063
+
+public:
+  dc: 2
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+  max_conns: 16
+  min_conns: 4
+
+file_data:
+  addr: 0.0.0.0:2520
+  token: ${TELESRV_FILE_TOKEN}
+
+storage:
+  blob_backend: ${TELESRV_BLOB_BACKEND}
+  blob_dir: /var/lib/telesrv-file/blobs
+  blob_staging_dir: /var/lib/telesrv-file/blob-staging
+  s3:
+    endpoint: ${TELESRV_S3_ENDPOINT}
+    region: ${TELESRV_S3_REGION}
+    bucket: ${TELESRV_S3_BUCKET}
+    access_key_id: ${TELESRV_S3_ACCESS_KEY_ID}
+    secret_access_key: ${TELESRV_S3_SECRET_ACCESS_KEY}
+    use_ssl: ${TELESRV_S3_USE_SSL}
+    path_style: ${TELESRV_S3_PATH_STYLE}
+    create_bucket: ${TELESRV_S3_CREATE_BUCKET}
+  low_space_guard_enabled: true
+  min_free_bytes: 1073741824
+  max_total_bytes: 0
+  usage_refresh_interval: 1m
+
+upload:
+  part_ttl: 24h
+  part_gc_interval: 5m
+  part_gc_batch: 1000
+
+media:
+  map_tile_cache_dir: /var/lib/telesrv-file/maptiles
+  external_media_enable: ${TELESRV_EXTERNAL_MEDIA_ENABLE}
+  web_page_preview_enable: ${TELESRV_WEBPAGE_PREVIEW_ENABLE}

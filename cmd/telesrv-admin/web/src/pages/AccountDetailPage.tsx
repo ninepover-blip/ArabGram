@@ -1,0 +1,234 @@
+import { ArrowLeft, BadgeCheck, CircleAlert, ImagePlus, Sparkles, Star } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api, errorMessage } from "../api";
+import { ActionButton } from "../components/ActionButton";
+import { Avatar } from "../components/Avatar";
+import { AvatarModal } from "../components/AvatarModal";
+import { AuthorizationTable } from "../components/AuthorizationTable";
+import { Alert, AuditTable, Badge, LoadingSurface, PageFrame, SectionHead, SplitLayout, Summary, UsernameCell } from "../components/ui";
+import { ScamFakeActions, ScamFakeBadges } from "../components/flags";
+import { ColorAction, EmojiStatusAction, LoginEmailAction, PhoneAction, ProfileAction, SupportAction, UsernameAction } from "../components/attributes";
+import { useI18n } from "../i18n";
+import { displayName, displayPhone, displayUsername, formatDate, formatUnix, toInt } from "../lib/format";
+import type { Navigate } from "../routing";
+import type { AccountDetail } from "../types";
+
+export function AccountDetailPage({ id, navigate }: { id: number; navigate: Navigate }) {
+  const { t } = useI18n();
+  const [detail, setDetail] = useState<AccountDetail | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [months, setMonths] = useState("1");
+  const [starsAmount, setStarsAmount] = useState("1000");
+  const [freezeUntil, setFreezeUntil] = useState(() => toDateTimeLocal(new Date(Date.now() + 7 * 86400_000)));
+  const [freezeAppealURL, setFreezeAppealURL] = useState("");
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [avatarRefresh, setAvatarRefresh] = useState(0);
+
+  async function load() {
+    setBusy(true);
+    setError("");
+    try {
+      const next = await api.account(id);
+      setDetail(next);
+      if (next.Restriction.Frozen) {
+        if (next.Restriction.Until) {
+          setFreezeUntil(toDateTimeLocal(new Date(next.Restriction.Until)));
+        }
+        setFreezeAppealURL(next.Restriction.AppealURL || "");
+      }
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, [id]);
+
+  if (error) {
+    return <Alert>{error}</Alert>;
+  }
+  if (!detail) {
+    return <LoadingSurface label={busy ? t("account.loadingDetail") : t("account.waitingData")} />;
+  }
+
+  const account = detail.Account;
+  return (
+    <PageFrame
+      title={t("account.detailTitle", { id: account.ID })}
+      eyebrow={t("account.profile")}
+      actions={<button className="btn icon-text" onClick={() => navigate("/accounts")}><ArrowLeft size={15} /> {t("common.backToList")}</button>}
+    >
+      <SplitLayout
+        main={
+          <div className="stacked-sections">
+            <section className="entity-head">
+              <div className="entity-identity">
+                <Avatar id={account.ID} label={displayName(account)} size={64} refreshKey={avatarRefresh} />
+                <div>
+                <div className="entity-title">{displayName(account)}</div>
+                <div className="entity-subtitle">{displayUsername(account.Username) || t("account.noUsername")} · {displayPhone(account.Phone) || t("account.noPhone")}</div>
+                {account.Collectibles?.length > 0 && (
+                  <div className="entity-subtitle">
+                    <UsernameCell username="" collectibles={account.Collectibles} />
+                  </div>
+                )}
+                </div>
+              </div>
+              <div className="entity-badges">
+                {account.PremiumUntil > 0 ? <Badge tone="good">{t("account.premium")}</Badge> : <Badge>{t("account.notPremium")}</Badge>}
+                {detail.Verified ? <Badge tone="good">{t("common.verified")}</Badge> : <Badge>{t("account.notVerified")}</Badge>}
+                <ScamFakeBadges scam={detail.Scam} fake={detail.Fake} />
+                {account.Frozen ? <Badge tone="danger">{t("account.accountFrozen")}</Badge> : <Badge>{t("account.accountActive")}</Badge>}
+              </div>
+            </section>
+            <div className="summary-grid">
+              <Summary label={t("account.userID")} value={String(account.ID)} mono />
+              <Summary label={t("account.lastActive")} value={formatUnix(detail.LastSeenAt) || "-"} />
+              <Summary label={t("account.premiumUntil")} value={account.PremiumUntil > 0 ? formatUnix(account.PremiumUntil) : t("common.none")} />
+              <Summary label={t("account.starsBalance")} value={`${detail.StarsBalance} / ${detail.StarsGranted ? t("account.startingGrantApplied") : t("account.startingGrantPending")}`} />
+              <Summary label={t("common.updatedAt")} value={formatDate(account.UpdatedAt) || "-"} />
+              <Summary label={t("account.activeSessions")} value={String(detail.Authorizations.length)} />
+              <Summary label={t("account.accountFlags")} value={`support=${detail.Support} bot=${detail.Bot}`} />
+              <Summary label={t("attr.loginEmail")} value={detail.LoginEmail || t("common.none")} />
+              <Summary label={t("account.restriction")} value={detail.HasRestriction ? detail.Restriction.Reason || t("account.restricted") : t("common.none")} />
+              <Summary label={t("account.freezeSince")} value={detail.Restriction.Since ? formatDate(detail.Restriction.Since) : t("common.none")} />
+              <Summary label={t("account.freezeUntil")} value={detail.Restriction.Until ? formatDate(detail.Restriction.Until) : t("common.none")} />
+              <Summary label={t("account.freezeAppealURL")} value={detail.Restriction.AppealURL || t("common.none")} />
+              <Summary label={t("account.createdAt")} value={formatDate(account.CreatedAt) || "-"} />
+            </div>
+            {detail.About && <p className="about-text">{detail.About}</p>}
+            <section className="section-block">
+              <SectionHead title={t("account.authorizationsTitle")} text={t("account.authorizationsCount", { count: detail.Authorizations.length })} />
+              <AuthorizationTable rows={detail.Authorizations} userID={account.ID} onDone={load} />
+            </section>
+            <section className="section-block">
+              <SectionHead title={t("account.recentAdminOps")} text={t("account.recent30Audit")} />
+              <AuditTable rows={detail.AuditLogs} />
+            </section>
+          </div>
+        }
+        side={
+          <section className="action-dock">
+            <div className="dock-title">{t("account.actionDock")}</div>
+            <label className="duration-field">
+              <span>{t("account.freezeUntil")}</span>
+              <input
+                aria-label={t("account.freezeUntilAria")}
+                value={freezeUntil}
+                onChange={(event) => setFreezeUntil(event.target.value)}
+                type="datetime-local"
+              />
+            </label>
+            <label className="duration-field">
+              <span>{t("account.freezeAppealURL")}</span>
+              <input
+                aria-label={t("account.freezeAppealURLAria")}
+                value={freezeAppealURL}
+                onChange={(event) => setFreezeAppealURL(event.target.value)}
+                type="url"
+                placeholder="https://..."
+              />
+            </label>
+            <ActionButton
+              label={account.Frozen ? t("account.updateFreeze") : t("account.freezeAccount")}
+              icon={<CircleAlert size={15} />}
+              path="/api/actions/set-frozen"
+              payload={() => ({
+                user_id: account.ID,
+                frozen: true,
+                freeze_until: new Date(freezeUntil).toISOString(),
+                freeze_appeal_url: freezeAppealURL.trim()
+              })}
+              onDone={load}
+            />
+            {account.Frozen && (
+              <ActionButton
+                label={t("account.unfreezeAccount")}
+                icon={<CircleAlert size={15} />}
+                path="/api/actions/set-frozen"
+                payload={() => ({ user_id: account.ID, frozen: false })}
+                onDone={load}
+              />
+            )}
+            <label className="duration-field">
+              <span>{t("account.premiumMonths")}</span>
+              <input
+                aria-label={t("account.premiumMonthsAria")}
+                value={months}
+                onChange={(event) => setMonths(event.target.value)}
+                type="number"
+                min="1"
+                max="120"
+              />
+            </label>
+            <div className="action-stack">
+              <ActionButton
+                label={t("account.setPremium")}
+                icon={<Sparkles size={15} />}
+                tone="warn"
+                path="/api/actions/grant-premium"
+                payload={() => ({ user_id: account.ID, months: toInt(months) })}
+                onDone={load}
+              />
+              <ActionButton
+                label={t("account.clearPremium")}
+                icon={<Sparkles size={15} />}
+                tone="warn"
+                path="/api/actions/grant-premium"
+                payload={() => ({ user_id: account.ID, months: 0 })}
+                onDone={load}
+              />
+              <label className="duration-field">
+                <span>{t("account.starsAmount")}</span>
+                <input
+                  aria-label={t("account.starsAmountAria")}
+                  value={starsAmount}
+                  onChange={(event) => setStarsAmount(event.target.value)}
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                />
+              </label>
+              <ActionButton
+                label={t("account.grantStars")}
+                icon={<Star size={15} />}
+                tone="warn"
+                path="/api/actions/grant-stars"
+                payload={() => ({ user_id: account.ID, amount: toInt(starsAmount) })}
+                onDone={load}
+              />
+              <ActionButton
+                label={detail.Verified ? t("account.clearVerified") : t("account.setVerified")}
+                icon={<BadgeCheck size={15} />}
+                tone="warn"
+                path="/api/actions/set-verified"
+                payload={() => ({ user_id: account.ID, verified: !detail.Verified })}
+                onDone={load}
+              />
+            </div>
+            <ScamFakeActions idKey="user_id" id={account.ID} path="/api/actions/set-account-flags" scam={detail.Scam} fake={detail.Fake} onDone={load} />
+            <div className="dock-title">{t("attr.attributes")}</div>
+            <button className="btn icon-text" type="button" onClick={() => setAvatarOpen(true)}><ImagePlus size={15} /> {t("avatar.change")}</button>
+            <ProfileAction id={account.ID} firstName={account.FirstName} lastName={account.LastName} onDone={load} />
+            <PhoneAction id={account.ID} current={account.Phone} onDone={load} />
+            <LoginEmailAction id={account.ID} current={detail.LoginEmail} onDone={load} />
+            <SupportAction id={account.ID} support={detail.Support} onDone={load} />
+            <UsernameAction idKey="user_id" id={account.ID} path="/api/actions/set-account-username" current={account.Username} onDone={load} />
+            <ColorAction idKey="user_id" id={account.ID} path="/api/actions/set-account-color" onDone={load} />
+            <EmojiStatusAction idKey="user_id" id={account.ID} path="/api/actions/set-account-emoji-status" onDone={load} />
+          </section>
+        }
+      />
+      {avatarOpen && <AvatarModal kind="user" id={account.ID} onClose={() => setAvatarOpen(false)} onDone={() => { setAvatarRefresh((value) => value + 1); void load(); }} />}
+    </PageFrame>
+  );
+}
+
+function toDateTimeLocal(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}

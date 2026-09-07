@@ -1,0 +1,537 @@
+package privacy
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"telesrv/internal/domain"
+	"telesrv/internal/store"
+	"telesrv/internal/store/memory"
+)
+
+type countingBaseUsers struct {
+	calls int
+	users map[int64]domain.User
+}
+
+func (p *countingBaseUsers) PrivacyBaseUsers(_ context.Context, userIDs []int64) ([]domain.User, error) {
+	p.calls++
+	out := make([]domain.User, 0, len(userIDs))
+	for _, userID := range userIDs {
+		if user, ok := p.users[userID]; ok {
+			out = append(out, user)
+		}
+	}
+	return out, nil
+}
+
+type countingMemberships struct {
+	calls         int
+	batchCalls    int
+	batchRequests []map[int64][]int64
+	active        map[int64]map[int64]bool
+}
+
+type countingSparseContacts struct {
+	store.ContactStore
+	sparseCalls int
+	getMany     int
+	requested   map[int64][]int64
+}
+
+func (c *countingSparseContacts) GetMany(ctx context.Context, ownerUserID int64, viewerUserIDs []int64) (map[int64]domain.Contact, error) {
+	c.getMany++
+	return c.ContactStore.GetMany(ctx, ownerUserID, viewerUserIDs)
+}
+
+func (c *countingSparseContacts) ContactProjectionForViewerUserIDs(ctx context.Context, requested map[int64][]int64) (domain.ContactProjectionBatch, error) {
+	c.sparseCalls++
+	c.requested = make(map[int64][]int64, len(requested))
+	for viewerID, targetIDs := range requested {
+		c.requested[viewerID] = append([]int64(nil), targetIDs...)
+	}
+	return c.ContactStore.(store.SparseContactProjectionStore).ContactProjectionForViewerUserIDs(ctx, requested)
+}
+
+func (p *countingMemberships) FilterActiveChannelMemberPairs(_ context.Context, requested map[int64][]int64) (map[int64][]int64, error) {
+	p.batchCalls++
+	cloned := make(map[int64][]int64, len(requested))
+	out := make(map[int64][]int64, len(requested))
+	for channelID, userIDs := range requested {
+		cloned[channelID] = append([]int64(nil), userIDs...)
+		for _, userID := range userIDs {
+			if p.active[channelID][userID] {
+				out[channelID] = append(out[channelID], userID)
+			}
+		}
+	}
+	p.batchRequests = append(p.batchRequests, cloned)
+	return out, nil
+}
+
+func (p *countingMemberships) FilterActiveChannelMemberIDs(_ context.Context, channelID int64, userIDs []int64) ([]int64, error) {
+	p.calls++
+	out := make([]int64, 0, len(userIDs))
+	for _, userID := range userIDs {
+		if p.active[channelID][userID] {
+			out = append(out, userID)
+		}
+	}
+	return out, nil
+}
+
+func TestDefaultPrivacyRules(t *testing.T) {
+	ctx := context.Background()
+	svc := NewService(memory.NewPrivacyStore(), memory.NewContactStore())
+	phone, err := svc.GetRules(ctx, 1001, domain.PrivacyKeyPhoneNumber)
+	if err != nil {
+		t.Fatalf("phone rules: %v", err)
+	}
+	if len(phone.Rules) != 1 || phone.Rules[0].Kind != domain.PrivacyRuleDisallowAll {
+		t.Fatalf("phone default = %+v, want disallow all", phone.Rules)
+	}
+	birthday, err := svc.GetRules(ctx, 1001, domain.PrivacyKeyBirthday)
+	if err != nil {
+		t.Fatalf("birthday rules: %v", err)
+	}
+	if len(birthday.Rules) != 1 || birthday.Rules[0].Kind != domain.PrivacyRuleAllowContacts {
+		t.Fatalf("birthday default = %+v, want allow contacts", birthday.Rules)
+	}
+	profile, err := svc.GetRules(ctx, 1001, domain.PrivacyKeyProfilePhoto)
+	if err != nil {
+		t.Fatalf("profile rules: %v", err)
+	}
+	if len(profile.Rules) != 1 || profile.Rules[0].Kind != domain.PrivacyRuleAllowAll {
+		t.Fatalf("profile default = %+v, want allow all", profile.Rules)
+	}
+}
+
+func TestCanSeeAnonymousHonorsPublicOnlyRules(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewPrivacyStore()
+	svc := NewService(store, nil)
+	const ownerID int64 = 1001
+
+	if visible, err := svc.CanSeeAnonymous(ctx, ownerID, domain.PrivacyKeyAbout); err != nil || !visible {
+		t.Fatalf("default anonymous about visibility = %v, err=%v; want true", visible, err)
+	}
+	if _, err := svc.SetRules(ctx, ownerID, domain.PrivacyKeyProfilePhoto, []domain.PrivacyRule{{Kind: domain.PrivacyRuleAllowContacts}}); err != nil {
+		t.Fatalf("set contacts-only profile photo: %v", err)
+	}
+	if visible, err := svc.CanSeeAnonymous(ctx, ownerID, domain.PrivacyKeyProfilePhoto); err != nil || visible {
+		t.Fatalf("contacts-only anonymous photo visibility = %v, err=%v; want false", visible, err)
+	}
+	if _, err := svc.SetRules(ctx, ownerID, domain.PrivacyKeyProfilePhoto, []domain.PrivacyRule{
+		{Kind: domain.PrivacyRuleDisallowUsers, UserIDs: []int64{2002}},
+		{Kind: domain.PrivacyRuleAllowAll},
+	}); err != nil {
+		t.Fatalf("set public profile photo: %v", err)
+	}
+	if visible, err := svc.CanSeeAnonymous(ctx, ownerID, domain.PrivacyKeyProfilePhoto); err != nil || !visible {
+		t.Fatalf("allow-all anonymous photo visibility = %v, err=%v; want true", visible, err)
+	}
+}
+
+func TestAddAllowUserOverridesDisallowAll(t *testing.T) {
+	ctx := context.Background()
+	svc := NewService(memory.NewPrivacyStore(), memory.NewContactStore())
+	if _, err := svc.SetRules(ctx, 1001, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{{Kind: domain.PrivacyRuleDisallowAll}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+	allowed, err := svc.CanSee(ctx, 1001, 1002, domain.PrivacyKeyPhoneNumber)
+	if err != nil {
+		t.Fatalf("can see before: %v", err)
+	}
+	if allowed {
+		t.Fatal("viewer should not see phone before exception")
+	}
+	if _, changed, err := svc.AddAllowUser(ctx, 1001, domain.PrivacyKeyPhoneNumber, 1002); err != nil {
+		t.Fatalf("add allow: %v", err)
+	} else if !changed {
+		t.Fatal("first add allow should report changed")
+	}
+	allowed, err = svc.CanSee(ctx, 1001, 1002, domain.PrivacyKeyPhoneNumber)
+	if err != nil {
+		t.Fatalf("can see after: %v", err)
+	}
+	if !allowed {
+		t.Fatal("viewer should see phone after allow-user exception")
+	}
+}
+
+func TestExplicitDisallowUserWins(t *testing.T) {
+	rules := domain.PrivacyRules{
+		Key: domain.PrivacyKeyProfilePhoto,
+		Rules: []domain.PrivacyRule{
+			{Kind: domain.PrivacyRuleAllowAll},
+			{Kind: domain.PrivacyRuleDisallowUsers, UserIDs: []int64{1002}},
+		},
+	}
+	if Evaluate(rules, domain.PrivacyContext{OwnerUserID: 1001, ViewerUserID: 1002}) {
+		t.Fatal("explicit disallow user should win over allow all")
+	}
+}
+
+// TestCanSeeBatchEquivalentToCanSee 锁定批量 privacy 评估与逐 CanSee 字节等价（projectBatch
+// fan-out N+1 优化的正确性前提）：覆盖默认规则/allow-all/disallow-all/allow-contacts(含联系人)/self。
+func TestCanSeeBatchEquivalentToCanSee(t *testing.T) {
+	ctx := context.Background()
+	contacts := memory.NewContactStore()
+	svc := NewService(memory.NewPrivacyStore(), contacts)
+	const viewer = int64(1002)
+	owners := []int64{1001, 1003, 1004, 1005, viewer}
+
+	if _, err := svc.SetRules(ctx, 1003, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{{Kind: domain.PrivacyRuleAllowAll}}); err != nil {
+		t.Fatalf("set 1003 phone: %v", err)
+	}
+	if _, err := svc.SetRules(ctx, 1004, domain.PrivacyKeyStatusTimestamp, []domain.PrivacyRule{{Kind: domain.PrivacyRuleDisallowAll}}); err != nil {
+		t.Fatalf("set 1004 status: %v", err)
+	}
+	if _, err := svc.SetRules(ctx, 1005, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{{Kind: domain.PrivacyRuleAllowContacts}}); err != nil {
+		t.Fatalf("set 1005 phone: %v", err)
+	}
+	// owner 1005 把 viewer 加为联系人（GetReverseContacts(viewer,[1005]) 命中 → allow-contacts 可见）。
+	if _, err := contacts.Upsert(ctx, 1005, domain.ContactInput{ContactUserID: viewer}); err != nil {
+		t.Fatalf("upsert contact: %v", err)
+	}
+
+	keys := []domain.PrivacyKey{domain.PrivacyKeyPhoneNumber, domain.PrivacyKeyStatusTimestamp, domain.PrivacyKeyProfilePhoto}
+	batch, err := svc.CanSeeBatch(ctx, owners, viewer, keys)
+	if err != nil {
+		t.Fatalf("CanSeeBatch: %v", err)
+	}
+	for _, owner := range owners {
+		for _, k := range keys {
+			want, err := svc.CanSee(ctx, owner, viewer, k)
+			if err != nil {
+				t.Fatalf("CanSee(%d,%d,%v): %v", owner, viewer, k, err)
+			}
+			got, ok := batch[owner][k]
+			if !ok {
+				t.Fatalf("CanSeeBatch missing owner=%d key=%v", owner, k)
+			}
+			if got != want {
+				t.Fatalf("CanSeeBatch[%d][%v]=%v != CanSee=%v (must be equivalent)", owner, k, got, want)
+			}
+		}
+	}
+}
+
+// TestCanSeeMatrixEquivalentToCanSee 锁定 owners×viewers×keys 矩阵评估与逐 CanSee 字节等价
+// （ForViewers fan-out 模板化把 privacy 查询降到 O(owner) 的正确性前提）。覆盖多 owner 多 viewer：
+// 不同规则、联系人方向（owner 把 viewer 加为联系人才命中 allow-contacts）、self（owner==viewer）。
+func TestCanSeeMatrixEquivalentToCanSee(t *testing.T) {
+	ctx := context.Background()
+	contacts := memory.NewContactStore()
+	svc := NewService(memory.NewPrivacyStore(), contacts)
+	owners := []int64{6001, 6002, 6003, 6004}
+	viewers := []int64{7001, 7002, 6002} // 6002 既是 owner 又是 viewer → 命中 self 分支
+
+	if _, err := svc.SetRules(ctx, 6002, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{{Kind: domain.PrivacyRuleAllowAll}}); err != nil {
+		t.Fatalf("set 6002 phone: %v", err)
+	}
+	if _, err := svc.SetRules(ctx, 6003, domain.PrivacyKeyStatusTimestamp, []domain.PrivacyRule{{Kind: domain.PrivacyRuleDisallowAll}}); err != nil {
+		t.Fatalf("set 6003 status: %v", err)
+	}
+	if _, err := svc.SetRules(ctx, 6004, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{{Kind: domain.PrivacyRuleAllowContacts}}); err != nil {
+		t.Fatalf("set 6004 phone: %v", err)
+	}
+	// owner 6004 把 viewer 7001 加为联系人（owner→viewer 方向 = privacy 的 ViewerIsContact）。
+	if _, err := contacts.Upsert(ctx, 6004, domain.ContactInput{ContactUserID: 7001}); err != nil {
+		t.Fatalf("upsert contact: %v", err)
+	}
+
+	keys := []domain.PrivacyKey{domain.PrivacyKeyPhoneNumber, domain.PrivacyKeyStatusTimestamp, domain.PrivacyKeyProfilePhoto}
+	matrix, err := svc.CanSeeMatrix(ctx, owners, viewers, keys)
+	if err != nil {
+		t.Fatalf("CanSeeMatrix: %v", err)
+	}
+	for _, owner := range owners {
+		for _, viewer := range viewers {
+			for _, k := range keys {
+				want, err := svc.CanSee(ctx, owner, viewer, k)
+				if err != nil {
+					t.Fatalf("CanSee(%d,%d,%v): %v", owner, viewer, k, err)
+				}
+				got, ok := matrix[owner][viewer][k]
+				if !ok {
+					t.Fatalf("CanSeeMatrix missing owner=%d viewer=%d key=%v", owner, viewer, k)
+				}
+				if got != want {
+					t.Fatalf("CanSeeMatrix[%d][%d][%v]=%v != CanSee=%v (must be equivalent)", owner, viewer, k, got, want)
+				}
+			}
+		}
+	}
+}
+
+func TestCanSeeMatrixLoadsOwnerViewerContactsInOneSparseBatch(t *testing.T) {
+	ctx := context.Background()
+	inner := memory.NewContactStore()
+	contacts := &countingSparseContacts{ContactStore: inner}
+	svc := NewService(memory.NewPrivacyStore(), contacts)
+	owners := []int64{6101, 6102}
+	viewers := []int64{7101, 7102}
+	for _, owner := range owners {
+		if _, err := svc.SetRules(ctx, owner, domain.PrivacyKeyPhoneNumber, []domain.PrivacyRule{
+			{Kind: domain.PrivacyRuleAllowContacts},
+			{Kind: domain.PrivacyRuleDisallowAll},
+		}); err != nil {
+			t.Fatalf("set owner %d rules: %v", owner, err)
+		}
+	}
+	if _, err := inner.Upsert(ctx, owners[0], domain.ContactInput{ContactUserID: viewers[0]}); err != nil {
+		t.Fatalf("upsert contact: %v", err)
+	}
+
+	matrix, err := svc.CanSeeMatrix(ctx, owners, viewers, []domain.PrivacyKey{domain.PrivacyKeyPhoneNumber})
+	if err != nil {
+		t.Fatalf("CanSeeMatrix: %v", err)
+	}
+	if contacts.sparseCalls != 1 || contacts.getMany != 0 {
+		t.Fatalf("contact reads = sparse %d / GetMany %d, want 1 / 0", contacts.sparseCalls, contacts.getMany)
+	}
+	for _, owner := range owners {
+		if got := len(contacts.requested[owner]); got != len(viewers) {
+			t.Fatalf("requested owner %d viewers = %v, want %v", owner, contacts.requested[owner], viewers)
+		}
+	}
+	if !matrix[owners[0]][viewers[0]][domain.PrivacyKeyPhoneNumber] {
+		t.Fatal("owner contact relation was not applied")
+	}
+	if matrix[owners[0]][viewers[1]][domain.PrivacyKeyPhoneNumber] ||
+		matrix[owners[1]][viewers[0]][domain.PrivacyKeyPhoneNumber] ||
+		matrix[owners[1]][viewers[1]][domain.PrivacyKeyPhoneNumber] {
+		t.Fatalf("unexpected non-contact visibility: %+v", matrix)
+	}
+}
+
+func TestViewerFactsReadModelBatchesCachesAndInvalidates(t *testing.T) {
+	ctx := context.Background()
+	rules := memory.NewPrivacyStore()
+	users := &countingBaseUsers{users: map[int64]domain.User{
+		2001: {ID: 2001, PremiumUntil: 2000},
+		2002: {ID: 2002, Bot: true},
+	}}
+	svc := NewService(rules, memory.NewContactStore()).ConfigureReadModels(users, nil)
+	svc.now = func() time.Time { return time.Unix(1000, 0) }
+
+	if _, err := svc.SetRules(ctx, 1001, domain.PrivacyKeyNoPaidMessages, []domain.PrivacyRule{
+		{Kind: domain.PrivacyRuleAllowPremium},
+		{Kind: domain.PrivacyRuleDisallowAll},
+	}); err != nil {
+		t.Fatalf("set premium rules: %v", err)
+	}
+	if _, err := svc.SetRules(ctx, 1002, domain.PrivacyKeyNoPaidMessages, []domain.PrivacyRule{
+		{Kind: domain.PrivacyRuleAllowBots},
+		{Kind: domain.PrivacyRuleDisallowAll},
+	}); err != nil {
+		t.Fatalf("set bot rules: %v", err)
+	}
+
+	got, err := svc.CanSeeMatrix(
+		ctx,
+		[]int64{1001, 1002},
+		[]int64{2001, 2002},
+		[]domain.PrivacyKey{domain.PrivacyKeyNoPaidMessages},
+	)
+	if err != nil {
+		t.Fatalf("CanSeeMatrix: %v", err)
+	}
+	if !got[1001][2001][domain.PrivacyKeyNoPaidMessages] ||
+		got[1001][2002][domain.PrivacyKeyNoPaidMessages] ||
+		got[1002][2001][domain.PrivacyKeyNoPaidMessages] ||
+		!got[1002][2002][domain.PrivacyKeyNoPaidMessages] {
+		t.Fatalf("unexpected premium/bot visibility matrix: %+v", got)
+	}
+	if users.calls != 1 {
+		t.Fatalf("base user cold loads = %d, want one batched load", users.calls)
+	}
+
+	if premium, err := svc.ViewerIsPremium(ctx, 2001); err != nil || !premium {
+		t.Fatalf("warm ViewerIsPremium = %v, err=%v; want true", premium, err)
+	}
+	if users.calls != 1 {
+		t.Fatalf("warm viewer facts hit called backend: calls=%d", users.calls)
+	}
+
+	users.users[2001] = domain.User{ID: 2001}
+	svc.InvalidateViewerFacts(2001)
+	if premium, err := svc.ViewerIsPremium(ctx, 2001); err != nil || premium {
+		t.Fatalf("invalidated ViewerIsPremium = %v, err=%v; want false", premium, err)
+	}
+	if users.calls != 2 {
+		t.Fatalf("invalidated viewer facts cold loads = %d, want 2", users.calls)
+	}
+}
+
+func TestMembershipReadModelCachesNegativeFactsAndInvalidatesPair(t *testing.T) {
+	ctx := context.Background()
+	rules := memory.NewPrivacyStore()
+	memberships := &countingMemberships{active: map[int64]map[int64]bool{
+		9001: {2001: true},
+		9002: {},
+	}}
+	svc := NewService(rules, memory.NewContactStore()).ConfigureReadModels(nil, memberships)
+	if _, err := svc.SetRules(ctx, 1001, domain.PrivacyKeyChatInvite, []domain.PrivacyRule{
+		{Kind: domain.PrivacyRuleAllowChatParticipants, ChatIDs: []int64{9001, 9002}},
+		{Kind: domain.PrivacyRuleDisallowAll},
+	}); err != nil {
+		t.Fatalf("set participant rules: %v", err)
+	}
+
+	got, err := svc.CanSeeMatrix(
+		ctx,
+		[]int64{1001},
+		[]int64{2001, 2002},
+		[]domain.PrivacyKey{domain.PrivacyKeyChatInvite},
+	)
+	if err != nil {
+		t.Fatalf("CanSeeMatrix: %v", err)
+	}
+	if !got[1001][2001][domain.PrivacyKeyChatInvite] ||
+		got[1001][2002][domain.PrivacyKeyChatInvite] {
+		t.Fatalf("unexpected membership visibility matrix: %+v", got)
+	}
+	if memberships.batchCalls != 1 || memberships.calls != 0 {
+		t.Fatalf("membership cold loads = batch %d scalar %d, want batch=1 scalar=0", memberships.batchCalls, memberships.calls)
+	}
+
+	if allowed, err := svc.CanSee(ctx, 1001, 2002, domain.PrivacyKeyChatInvite); err != nil || allowed {
+		t.Fatalf("warm negative membership = %v, err=%v; want false", allowed, err)
+	}
+	if memberships.batchCalls != 1 || memberships.calls != 0 {
+		t.Fatalf("negative cache missed: batch=%d scalar=%d", memberships.batchCalls, memberships.calls)
+	}
+
+	memberships.active[9002][2002] = true
+	svc.InvalidateMembership(9002, 2002)
+	if allowed, err := svc.CanSee(ctx, 1001, 2002, domain.PrivacyKeyChatInvite); err != nil || !allowed {
+		t.Fatalf("invalidated membership = %v, err=%v; want true", allowed, err)
+	}
+	if memberships.batchCalls != 2 || memberships.calls != 0 {
+		t.Fatalf("pair invalidation reloads = batch %d scalar %d, want batch=2 scalar=0", memberships.batchCalls, memberships.calls)
+	}
+}
+
+func TestSparsePrivacyMembershipUsesOneExactPairBatch(t *testing.T) {
+	ctx := context.Background()
+	const (
+		ownerA  = int64(1001)
+		ownerB  = int64(1002)
+		viewerA = int64(2001)
+		viewerB = int64(2002)
+		chatA   = int64(9001)
+		chatB   = int64(9002)
+	)
+	rules := memory.NewPrivacyStore()
+	memberships := &countingMemberships{active: map[int64]map[int64]bool{
+		chatA: {viewerA: true, viewerB: true},
+		chatB: {viewerA: true, viewerB: true},
+	}}
+	svc := NewService(rules, memory.NewContactStore()).ConfigureReadModels(nil, memberships)
+	for ownerID, chatID := range map[int64]int64{ownerA: chatA, ownerB: chatB} {
+		if _, err := svc.SetRules(ctx, ownerID, domain.PrivacyKeyProfilePhoto, []domain.PrivacyRule{
+			{Kind: domain.PrivacyRuleAllowChatParticipants, ChatIDs: []int64{chatID}},
+			{Kind: domain.PrivacyRuleDisallowAll},
+		}); err != nil {
+			t.Fatalf("SetRules(%d): %v", ownerID, err)
+		}
+	}
+	got, err := svc.CanSeeForViewerUserIDs(ctx, map[int64][]int64{
+		viewerA: {ownerA},
+		viewerB: {ownerB},
+	}, []domain.PrivacyKey{domain.PrivacyKeyProfilePhoto}, map[int64]map[int64]domain.Contact{})
+	if err != nil {
+		t.Fatalf("CanSeeForViewerUserIDs: %v", err)
+	}
+	if !got[ownerA][viewerA][domain.PrivacyKeyProfilePhoto] || !got[ownerB][viewerB][domain.PrivacyKeyProfilePhoto] {
+		t.Fatalf("visibility = %+v, want both exact pairs visible", got)
+	}
+	if memberships.batchCalls != 1 || memberships.calls != 0 {
+		t.Fatalf("membership loads = batch %d scalar %d, want batch=1 scalar=0", memberships.batchCalls, memberships.calls)
+	}
+	requested := memberships.batchRequests[0]
+	if len(requested) != 2 || len(requested[chatA]) != 1 || requested[chatA][0] != viewerA || len(requested[chatB]) != 1 || requested[chatB][0] != viewerB {
+		t.Fatalf("membership request = %+v, want only (%d,%d) and (%d,%d)", requested, chatA, viewerA, chatB, viewerB)
+	}
+}
+
+func TestSparsePrivacyMembershipRejectsDerivedPairOverflowBeforeLoad(t *testing.T) {
+	ctx := context.Background()
+	rules := memory.NewPrivacyStore()
+	memberships := &countingMemberships{active: map[int64]map[int64]bool{}}
+	svc := NewService(rules, memory.NewContactStore()).ConfigureReadModels(nil, memberships)
+	owners := []int64{1001, 1002, 1003, 1004, 1005}
+	for ownerIndex, ownerID := range owners {
+		chatIDs := make([]int64, 5000)
+		for i := range chatIDs {
+			chatIDs[i] = int64(100000 + ownerIndex*10000 + i)
+		}
+		if _, err := svc.SetRules(ctx, ownerID, domain.PrivacyKeyProfilePhoto, []domain.PrivacyRule{
+			{Kind: domain.PrivacyRuleAllowChatParticipants, ChatIDs: chatIDs},
+			{Kind: domain.PrivacyRuleDisallowAll},
+		}); err != nil {
+			t.Fatalf("SetRules(%d): %v", ownerID, err)
+		}
+	}
+	_, err := svc.CanSeeForViewerUserIDs(ctx, map[int64][]int64{
+		2001: owners,
+		2002: owners,
+		2003: owners,
+	}, []domain.PrivacyKey{domain.PrivacyKeyProfilePhoto}, map[int64]map[int64]domain.Contact{})
+	if !errors.Is(err, store.ErrActiveChannelMemberPairsLimit) {
+		t.Fatalf("CanSeeForViewerUserIDs error = %v, want ErrActiveChannelMemberPairsLimit", err)
+	}
+	if memberships.batchCalls != 0 || memberships.calls != 0 {
+		t.Fatalf("membership loads = batch %d scalar %d, want fail before load", memberships.batchCalls, memberships.calls)
+	}
+}
+
+func TestDensePrivacyMembershipRejectsDerivedPairOverflowBeforeLoad(t *testing.T) {
+	memberships := &countingMemberships{active: map[int64]map[int64]bool{}}
+	svc := NewService(memory.NewPrivacyStore(), memory.NewContactStore()).ConfigureReadModels(nil, memberships)
+	chatIDs := make([]int64, 257)
+	viewerIDs := make([]int64, 256)
+	for i := range chatIDs {
+		chatIDs[i] = int64(i + 1)
+	}
+	for i := range viewerIDs {
+		viewerIDs[i] = int64(1000 + i)
+	}
+	_, err := svc.loadMembershipFacts(context.Background(), chatIDs, viewerIDs)
+	if !errors.Is(err, store.ErrActiveChannelMemberPairsLimit) {
+		t.Fatalf("loadMembershipFacts error = %v, want ErrActiveChannelMemberPairsLimit", err)
+	}
+	if memberships.batchCalls != 0 || memberships.calls != 0 {
+		t.Fatalf("membership loads = batch %d scalar %d, want fail before load", memberships.batchCalls, memberships.calls)
+	}
+}
+
+func TestLargeMembershipBatchBypassesLRUAdmissionWithoutEvictingHotPair(t *testing.T) {
+	ctx := context.Background()
+	memberships := &countingMemberships{active: map[int64]map[int64]bool{}}
+	svc := NewService(memory.NewPrivacyStore(), memory.NewContactStore()).ConfigureReadModels(nil, memberships)
+	hot := membershipKey{ChatID: 9001, UserID: 2001}
+	if _, err := svc.loadMembershipFactsForKeys(ctx, []membershipKey{hot}); err != nil {
+		t.Fatalf("warm hot membership pair: %v", err)
+	}
+	large := make([]membershipKey, store.MaxActiveChannelMemberPairs)
+	for i := range large {
+		large[i] = membershipKey{ChatID: 9002, UserID: int64(100000 + i)}
+	}
+	if _, err := svc.loadMembershipFactsForKeys(ctx, large); err != nil {
+		t.Fatalf("load large membership batch: %v", err)
+	}
+	if memberships.batchCalls != 2 || memberships.calls != 0 {
+		t.Fatalf("loads after large batch = batch %d scalar %d, want batch=2 scalar=0", memberships.batchCalls, memberships.calls)
+	}
+	if _, err := svc.loadMembershipFactsForKeys(ctx, []membershipKey{hot}); err != nil {
+		t.Fatalf("reload hot membership pair: %v", err)
+	}
+	if memberships.batchCalls != 2 || memberships.calls != 0 {
+		t.Fatalf("hot pair was evicted by non-admitted batch: batch=%d scalar=%d", memberships.batchCalls, memberships.calls)
+	}
+}

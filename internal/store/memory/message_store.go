@@ -1,0 +1,98 @@
+package memory
+
+import (
+	"sync"
+	"telesrv/internal/domain"
+)
+
+// MessageStore 是 store.MessageStore 的内存实现。
+type MessageStore struct {
+	mu                  sync.RWMutex
+	noForwardsMu        sync.Mutex
+	m                   map[int64][]domain.Message
+	nextUID             int64
+	nextBox             map[int64]int
+	nextPts             map[int64]int
+	readOutboxDates     map[readOutboxDateKey]int
+	privateReactions    map[int64]map[int64][]domain.ChannelMessagePeerReaction
+	savedMessageTags    map[int64]map[int][]domain.MessageReaction
+	savedTagTitles      map[int64]map[string]string
+	privateSendDedup    map[privateSendDedupKey]privateSendDedupRecord
+	loginCodeDeliveries map[[32]byte]loginCodeDeliveryRecord
+	albumGroups         map[albumGroupKey]albumGroupRecord
+	scheduledMessages   map[int64]map[int]memoryScheduledMessage
+	defaultHistoryTTL   map[int64]int
+	dialogs             *DialogStore
+	// polls 是共享 poll 权威（投票校验与读路径 enrichment）；nil 时 poll 链路按未接入处理。
+	polls *PollStore
+	// updateEvents is the in-memory production-shaped event+dispatch boundary
+	// used by poll mutations. Tests may attach the same instance consumed by
+	// app/updates so difference observes the committed events.
+	updateEvents *UpdateEventStore
+	// deliveryOutbox is explicitly attached by production-shaped RPC tests for
+	// non-PTS aggregate effects (poll/reaction/scheduled/TTL).
+	deliveryOutbox *DeliveryOutboxStore
+	// savedPins 是收藏夹子会话置顶顺序（下标即 pinned_order，越小越前）。
+	savedPins map[int64][]domain.Peer
+	// privateNoForwards is keyed by the sorted user pair. Requests are keyed by
+	// the shared logical private-message id so both local box ids resolve to one
+	// one-shot response fact.
+	privateNoForwards         map[privateNoForwardsPair]domain.PrivateNoForwardsState
+	privateNoForwardsRequests map[int64]memoryNoForwardsRequest
+}
+
+// AttachPollStore 注入共享 poll 权威（与 ChannelStore 共用同一实例）。
+func (s *MessageStore) AttachPollStore(polls *PollStore) {
+	s.polls = polls
+}
+
+type readOutboxDateKey struct {
+	ownerUserID int64
+	peerID      int64
+	msgID       int
+}
+
+// NewMessageStore 创建内存 MessageStore。
+func NewMessageStore(dialogs ...*DialogStore) *MessageStore {
+	s := &MessageStore{
+		m:                         make(map[int64][]domain.Message),
+		nextUID:                   1,
+		nextBox:                   make(map[int64]int),
+		nextPts:                   make(map[int64]int),
+		readOutboxDates:           make(map[readOutboxDateKey]int),
+		privateReactions:          make(map[int64]map[int64][]domain.ChannelMessagePeerReaction),
+		savedMessageTags:          make(map[int64]map[int][]domain.MessageReaction),
+		savedTagTitles:            make(map[int64]map[string]string),
+		privateSendDedup:          make(map[privateSendDedupKey]privateSendDedupRecord),
+		loginCodeDeliveries:       make(map[[32]byte]loginCodeDeliveryRecord),
+		albumGroups:               make(map[albumGroupKey]albumGroupRecord),
+		scheduledMessages:         make(map[int64]map[int]memoryScheduledMessage),
+		defaultHistoryTTL:         make(map[int64]int),
+		savedPins:                 make(map[int64][]domain.Peer),
+		privateNoForwards:         make(map[privateNoForwardsPair]domain.PrivateNoForwardsState),
+		privateNoForwardsRequests: make(map[int64]memoryNoForwardsRequest),
+		updateEvents:              NewUpdateEventStore(),
+	}
+	if len(dialogs) > 0 {
+		s.dialogs = dialogs[0]
+	}
+	return s
+}
+
+func (s *MessageStore) AttachUpdateEventStore(events *UpdateEventStore) {
+	if s == nil || events == nil {
+		return
+	}
+	s.mu.Lock()
+	s.updateEvents = events
+	s.mu.Unlock()
+}
+
+func (s *MessageStore) AttachDeliveryOutbox(outbox *DeliveryOutboxStore) {
+	if s == nil || outbox == nil {
+		return
+	}
+	s.mu.Lock()
+	s.deliveryOutbox = outbox
+	s.mu.Unlock()
+}

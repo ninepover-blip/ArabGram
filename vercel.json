@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd cmd/telesrv-admin/web && npm install && npm run build",
+  "outputDirectory": "cmd/telesrv-admin/web/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

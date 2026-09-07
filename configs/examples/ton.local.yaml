@@ -1,0 +1,45 @@
+version: 1
+
+instance:
+  id: ton-local-a
+
+debug:
+  addr: 127.0.0.1:6066
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+  max_conns: 8
+  min_conns: 2
+
+ton:
+  network: testnet
+  lite_servers:
+    - address: 127.0.0.1:19949
+      public_key: ${TELESRV_TON_LITESERVER_PUBLIC_KEY}
+  trusted_block:
+    workchain: -1
+    shard: -9223372036854775808
+    seqno: ${TELESRV_TON_TRUSTED_BLOCK_SEQNO}
+    root_hash: ${TELESRV_TON_TRUSTED_BLOCK_ROOT_HASH}
+    file_hash: ${TELESRV_TON_TRUSTED_BLOCK_FILE_HASH}
+  collection:
+    address: ${TELESRV_TON_COLLECTION_ADDRESS}
+    code_hash: ${TELESRV_TON_COLLECTION_CODE_HASH}
+    mint_abi: basic-collection-v1
+    initial_item_index: "${TELESRV_TON_INITIAL_ITEM_INDEX}"
+  relayer:
+    mnemonic_file: ${TELESRV_TON_MNEMONIC_FILE}
+    wallet_version: v4r2
+    min_balance: "1"
+    message_ttl: 15m
+  mint:
+    # This example is reconciliation-only until explicitly enabled.
+    enabled: false
+    send_amount: "0.05"
+    forward_amount: "0.01"
+    finality_depth: 12
+  worker:
+    batch: 10
+    poll_interval: 2s
+    lease_timeout: 2m
+    request_timeout: 90s

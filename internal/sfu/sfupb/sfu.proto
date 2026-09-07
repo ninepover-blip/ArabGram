@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package telesrv.sfu.v1;
+
+option go_package = "telesrv/internal/sfu/sfupb;sfupb";
+
+service SFUControlService {
+  rpc GetInfo(SFUInfoRequest) returns (SFUInfoResponse);
+  rpc Join(JoinRequest) returns (JoinResponse);
+  rpc Leave(LeaveRequest) returns (ErrorResponse);
+  rpc CloseRoom(CloseRoomRequest) returns (ErrorResponse);
+  rpc Alive(AliveRequest) returns (AliveResponse);
+}
+
+message SFUInfoRequest {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+}
+
+message SFUInfoResponse {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+  string implementation = 4;
+  string instance_id = 5;
+  string error = 6;
+}
+
+enum EndpointKind {
+  ENDPOINT_KIND_MAIN = 0;
+  ENDPOINT_KIND_PRESENTATION = 1;
+}
+
+message SsrcGroup {
+  string semantics = 1;
+  repeated uint32 sources = 2;
+}
+
+message ClientOffer {
+  uint32 audio_ssrc = 1;
+  string ufrag = 2;
+  string pwd = 3;
+  string fingerprint_sha256 = 4;
+  repeated SsrcGroup ssrc_groups = 5;
+}
+
+message Candidate {
+  string ip = 1;
+  int32 port = 2;
+  string protocol = 3;
+  string type = 4;
+}
+
+message ServerAnswer {
+  string ufrag = 1;
+  string pwd = 2;
+  string fingerprint_sha256 = 3;
+  repeated Candidate candidates = 4;
+}
+
+message JoinRequest {
+  int64 call_id = 1;
+  int64 user_id = 2;
+  EndpointKind kind = 3;
+  ClientOffer offer = 4;
+}
+
+message JoinResponse {
+  ServerAnswer answer = 1;
+  string error = 2;
+}
+
+message LeaveRequest {
+  int64 call_id = 1;
+  int64 user_id = 2;
+  EndpointKind kind = 3;
+}
+
+message CloseRoomRequest {
+  int64 call_id = 1;
+}
+
+message AliveRequest {
+  int64 call_id = 1;
+}
+
+message AliveResponse {
+  repeated int64 user_ids = 1;
+  string error = 2;
+}
+
+message ErrorResponse {
+  string error = 1;
+}

@@ -1,0 +1,36 @@
+version: 1
+
+instance:
+  id: file-local-a
+
+debug:
+  addr: 127.0.0.1:6063
+
+public:
+  dc: 2
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+
+file_data:
+  addr: 127.0.0.1:2520
+  token: ${TELESRV_FILE_TOKEN}
+
+storage:
+  blob_backend: localfs
+  blob_dir: data/blobs
+  blob_staging_dir: data/blob-staging
+  low_space_guard_enabled: true
+  min_free_bytes: 1073741824
+  max_total_bytes: 0
+  usage_refresh_interval: 1m
+
+upload:
+  part_ttl: 24h
+  part_gc_interval: 5m
+  part_gc_batch: 1000
+
+media:
+  map_tile_cache_dir: data/maptiles
+  external_media_enable: true
+  web_page_preview_enable: true

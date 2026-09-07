@@ -1,0 +1,66 @@
+version: 1
+
+instance:
+  id: edge-local-a
+
+debug:
+  addr: 127.0.0.1:6060
+
+public:
+  dc: 2
+  default_country_code: CN
+  strict_dc_check: false
+  advertise:
+    ip: 127.0.0.1
+    port: 2398
+  base_url: https://telesrv.net
+  app_scheme: telesrv
+  web_base_url: https://weba.telesrv.net
+
+redis:
+  addr: 127.0.0.1:6399
+  db: 0
+
+edge:
+  listen: 0.0.0.0:2398
+  rsa_key: data/server_rsa.pem
+  websocket:
+    enabled: true
+    allowed_origins:
+      - http://localhost:1234
+      - http://127.0.0.1:1234
+  mtproto:
+    outbound_critical_global_max_bytes: 67108864
+  location:
+    ttl: 90s
+    heartbeat_interval: 30s
+  auth_key_cache:
+    max_entries: 262144
+    ttl: 30m
+  temp_key_cache:
+    max_entries: 262144
+    ttl: 30m
+
+core_exec:
+  resolver: static
+  targets:
+    - 127.0.0.1:2440
+    - 127.0.0.1:2441
+  token: ${TELESRV_CORE_EXEC_TOKEN}
+  timeout: 5s
+
+file_data:
+  resolver: static
+  targets:
+    - 127.0.0.1:2520
+  token: ${TELESRV_FILE_TOKEN}
+  timeout: 10s
+
+egress:
+  delivery:
+    resolver: static
+    targets:
+      - 127.0.0.1:2510
+      - 127.0.0.1:2511
+    token: ${TELESRV_EGRESS_DELIVERY_TOKEN}
+    timeout: 5s

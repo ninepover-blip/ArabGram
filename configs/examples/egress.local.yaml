@@ -1,0 +1,31 @@
+version: 1
+
+instance:
+  id: egress-local-a
+
+debug:
+  addr: 127.0.0.1:6062
+
+public:
+  dc: 2
+  advertise:
+    ip: 127.0.0.1
+    port: 2398
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+
+redis:
+  addr: 127.0.0.1:6399
+  db: 0
+
+egress:
+  delivery_server:
+    addr: 127.0.0.1:2510
+    token: ${TELESRV_EGRESS_DELIVERY_TOKEN}
+  workers: 4
+  batch: 100
+  lease_timeout: 30s
+  outbound_push_timeout: 200ms
+  delivery_attempt_timeout: 2s
+  delivery_clock_skew_allowance: 1s

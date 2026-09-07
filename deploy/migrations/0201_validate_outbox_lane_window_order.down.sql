@@ -1,0 +1,2 @@
+-- Validation changes no row or constraint semantics. Migration 0200 owns the
+-- constraint lifecycle and removes it on rollback.

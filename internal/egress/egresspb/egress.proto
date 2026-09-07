@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package telesrv.egress.v3;
+
+option go_package = "telesrv/internal/egress/egresspb;egresspb";
+
+service EgressDeliveryService {
+  rpc GetInfo(EgressInfoRequest) returns (EgressInfoResponse);
+  rpc ReportPhysicalReceipts(PhysicalReceiptBatchRequest) returns (DeliveryEvidenceBatchResponse);
+  rpc ReportClientAcks(ClientAckBatchRequest) returns (DeliveryEvidenceBatchResponse);
+}
+
+message EgressInfoRequest {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+}
+
+message EgressInfoResponse {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+  string implementation = 4;
+  string instance_id = 5;
+  string error = 6;
+}
+
+enum DeliveryQueueKind {
+  DELIVERY_QUEUE_KIND_UNSPECIFIED = 0;
+  DELIVERY_QUEUE_KIND_ACCOUNT_PTS = 1;
+  DELIVERY_QUEUE_KIND_ACCOUNT_NON_PTS = 2;
+  DELIVERY_QUEUE_KIND_CHANNEL_PTS = 3;
+}
+
+enum PhysicalReceiptOutcome {
+  PHYSICAL_RECEIPT_OUTCOME_UNSPECIFIED = 0;
+  PHYSICAL_RECEIPT_OUTCOME_WRITTEN = 1;
+  PHYSICAL_RECEIPT_OUTCOME_NO_ELIGIBLE_SESSIONS = 2;
+  PHYSICAL_RECEIPT_OUTCOME_INDETERMINATE = 3;
+  PHYSICAL_RECEIPT_OUTCOME_REJECTED = 4;
+}
+
+enum DeliveryEvidenceOutcome {
+  DELIVERY_EVIDENCE_OUTCOME_UNSPECIFIED = 0;
+  DELIVERY_EVIDENCE_OUTCOME_RECORDED = 1;
+  DELIVERY_EVIDENCE_OUTCOME_DUPLICATE = 2;
+  DELIVERY_EVIDENCE_OUTCOME_ALREADY_FINALIZED = 3;
+  DELIVERY_EVIDENCE_OUTCOME_FENCED = 4;
+  DELIVERY_EVIDENCE_OUTCOME_REJECTED = 5;
+  DELIVERY_EVIDENCE_OUTCOME_RETRYABLE = 6;
+}
+
+// All repeated fields are positional columns and must have identical lengths.
+// A 128-bit batch id uses two fixed64 columns to avoid one bytes allocation per
+// receipt in the hot path.
+message PhysicalReceiptBatchRequest {
+  repeated uint32 queue_kinds = 1;
+  repeated int64 stream_ids = 2;
+  repeated int64 item_ids = 3;
+  repeated int64 sequences = 4;
+  repeated fixed64 lease_fences = 5;
+  repeated uint32 attempts = 6;
+  repeated fixed64 batch_id_low = 7;
+  repeated fixed64 batch_id_high = 8;
+  repeated string source_instance_ids = 9;
+  repeated string target_instance_ids = 10;
+  repeated uint32 outcomes = 11;
+  repeated uint32 eligible_sessions = 12;
+  repeated uint32 written_sessions = 13;
+  repeated int64 first_server_msg_ids = 14;
+  repeated int64 observed_at_unix_nanos = 15;
+  repeated uint32 detail_codes = 16;
+  repeated fixed64 command_id_low = 17;
+  repeated fixed64 command_id_high = 18;
+  repeated int64 target_user_ids = 19;
+}
+
+message ClientAckBatchRequest {
+  repeated uint32 queue_kinds = 1;
+  repeated int64 stream_ids = 2;
+  repeated int64 item_ids = 3;
+  repeated int64 sequences = 4;
+  repeated fixed64 lease_fences = 5;
+  repeated uint32 attempts = 6;
+  repeated fixed64 batch_id_low = 7;
+  repeated fixed64 batch_id_high = 8;
+  repeated string target_instance_ids = 9;
+  repeated fixed64 auth_key_ids = 10;
+  repeated sfixed64 session_ids = 11;
+  repeated int64 server_msg_ids = 12;
+  repeated int64 acked_at_unix_nanos = 13;
+  repeated fixed64 command_id_low = 14;
+  repeated fixed64 command_id_high = 15;
+  repeated int64 target_user_ids = 16;
+  repeated string source_instance_ids = 17;
+}
+
+message DeliveryEvidenceBatchResponse {
+  repeated DeliveryEvidenceOutcome outcomes = 1;
+  // Details are exceptional diagnostics only. The success path leaves this
+  // sparse map empty and relies on typed outcomes.
+  map<uint32, string> details = 2;
+}

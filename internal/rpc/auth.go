@@ -1,0 +1,1134 @@
+package rpc
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/iamxvbaba/td/proto"
+	"github.com/iamxvbaba/td/tg"
+
+	"github.com/iamxvbaba/td/tlprofile"
+	"telesrv/internal/app/auth"
+	"telesrv/internal/branding"
+	"telesrv/internal/domain"
+	"telesrv/internal/store"
+)
+
+// devCodeLength 是开发固定验证码长度，写入 auth.sentCode 的 type.length。
+const devCodeLength = 5
+
+// registerAuth 注册 auth.* RPC handler。
+func (r *Router) registerAuth(d *tlprofile.Dispatcher) {
+	registerRPC[*tg.AuthBindTempAuthKeyRequest](d, tlprofile.SemanticMethodAuthBindTempAuthKey, func(ctx context.Context, layerRequest *tg.AuthBindTempAuthKeyRequest) (any, error) {
+		return r.onAuthBindTempAuthKey(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthExportLoginTokenRequest](d, tlprofile.SemanticMethodAuthExportLoginToken, func(ctx context.Context, layerRequest *tg.AuthExportLoginTokenRequest) (any, error) {
+		return r.onAuthExportLoginToken(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthImportLoginTokenRequest](d, tlprofile.SemanticMethodAuthImportLoginToken, func(ctx context.Context, layerRequest *tg.AuthImportLoginTokenRequest) (any, error) {
+		return r.onAuthImportLoginToken(ctx, layerRequest.
+			Token)
+	})
+	registerRPC[*tg.AuthAcceptLoginTokenRequest](d, tlprofile.SemanticMethodAuthAcceptLoginToken, func(ctx context.Context, layerRequest *tg.AuthAcceptLoginTokenRequest) (any, error) {
+		return r.onAuthAcceptLoginToken(ctx, layerRequest.
+			Token)
+	})
+	registerRPC[*tg.AuthExportAuthorizationRequest](d, tlprofile.SemanticMethodAuthExportAuthorization, func(ctx context.Context, layerRequest *tg.AuthExportAuthorizationRequest) (any, error) {
+		dcid := layerRequest.
+			DCID
+		_ = dcid
+
+		return nil, dcIDInvalidErr()
+	})
+	registerRPC[*tg.AuthImportAuthorizationRequest](d, tlprofile.SemanticMethodAuthImportAuthorization, func(ctx context.Context, req *tg.AuthImportAuthorizationRequest) (any, error) {
+		return nil, dcIDInvalidErr()
+	})
+	registerRPC[*tg.AuthDropTempAuthKeysRequest](d, tlprofile.SemanticMethodAuthDropTempAuthKeys, func(ctx context.Context, layerRequest *tg.AuthDropTempAuthKeysRequest) (any, error) {
+		exceptauthkeys := layerRequest.
+			ExceptAuthKeys
+		_ = exceptauthkeys
+
+		return true, nil
+	})
+	registerRPC[*tg.AuthInitPasskeyLoginRequest](d, tlprofile.SemanticMethodAuthInitPasskeyLogin, func(ctx context.Context, layerRequest *tg.AuthInitPasskeyLoginRequest) (any, error) {
+		return r.onAuthInitPasskeyLogin(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthFinishPasskeyLoginRequest](d, tlprofile.SemanticMethodAuthFinishPasskeyLogin, func(ctx context.Context, layerRequest *tg.AuthFinishPasskeyLoginRequest) (any, error) {
+		return r.onAuthFinishPasskeyLogin(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthSendCodeRequest](d, tlprofile.SemanticMethodAuthSendCode, func(ctx context.Context, layerRequest *tg.AuthSendCodeRequest) (any, error) {
+		return r.onAuthSendCode(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthReportMissingCodeRequest](d, tlprofile.SemanticMethodAuthReportMissingCode, func(ctx context.Context, req *tg.AuthReportMissingCodeRequest) (any, error) {
+		return r.onAuthReportMissingCode(ctx, req)
+	})
+	registerRPC[*tg.AuthResendCodeRequest](d, tlprofile.SemanticMethodAuthResendCode, func(ctx context.Context, layerRequest *tg.AuthResendCodeRequest) (any, error) {
+		return r.onAuthResendCode(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthCancelCodeRequest](d, tlprofile.SemanticMethodAuthCancelCode, func(ctx context.Context, layerRequest *tg.AuthCancelCodeRequest) (any, error) {
+		return r.onAuthCancelCode(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthSignInRequest](d, tlprofile.SemanticMethodAuthSignIn, func(ctx context.Context, layerRequest *tg.AuthSignInRequest) (any, error) {
+		return r.onAuthSignIn(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthSignUpRequest](d, tlprofile.SemanticMethodAuthSignUp, func(ctx context.Context, layerRequest *tg.AuthSignUpRequest) (any, error) {
+		return r.onAuthSignUp(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthImportBotAuthorizationRequest](d, tlprofile.SemanticMethodAuthImportBotAuthorization, func(ctx context.Context, layerRequest *tg.AuthImportBotAuthorizationRequest) (any, error) {
+		return r.onAuthImportBotAuthorization(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthLogOutRequest](d, tlprofile.SemanticMethodAuthLogOut, func(ctx context.Context, layerRequest *tg.AuthLogOutRequest) (any, error) {
+		return r.onAuthLogOut(ctx)
+	})
+	registerRPC[*tg.AuthResetAuthorizationsRequest](d, tlprofile.SemanticMethodAuthResetAuthorizations, func(ctx context.Context, layerRequest *tg.AuthResetAuthorizationsRequest) (any, error) {
+		return r.onAuthResetAuthorizations(ctx)
+	})
+	registerRPC[*tg.AuthCheckPasswordRequest](d, tlprofile.SemanticMethodAuthCheckPassword, func(ctx context.Context, layerRequest *tg.AuthCheckPasswordRequest) (any, error) {
+		return r.onAuthCheckPassword(ctx, layerRequest.
+			Password)
+	})
+	registerRPC[*tg.AuthRequestPasswordRecoveryRequest](d, tlprofile.SemanticMethodAuthRequestPasswordRecovery, func(ctx context.Context, layerRequest *tg.AuthRequestPasswordRecoveryRequest) (any, error) {
+		return r.onAuthRequestPasswordRecovery(ctx)
+	})
+	registerRPC[*tg.AuthRecoverPasswordRequest](d, tlprofile.SemanticMethodAuthRecoverPassword, func(ctx context.Context, layerRequest *tg.AuthRecoverPasswordRequest) (any, error) {
+		return r.onAuthRecoverPassword(ctx, layerRequest)
+	})
+	registerRPC[*tg.AuthCheckRecoveryPasswordRequest](d, tlprofile.SemanticMethodAuthCheckRecoveryPassword, func(ctx context.Context, layerRequest *tg.AuthCheckRecoveryPasswordRequest) (
+
+		// onAuthBindTempAuthKey 记录 TDesktop 的 PFS temp→perm auth key 绑定。
+		any, error) {
+		return r.onAuthCheckRecoveryPassword(ctx, layerRequest.
+			Code)
+	})
+	registerRPC[*tg.AuthResetLoginEmailRequest](d, tlprofile.SemanticMethodAuthResetLoginEmail, func(ctx context.Context, layerRequest *tg.AuthResetLoginEmailRequest) (any, error) {
+		return r.onAuthResetLoginEmail(ctx, layerRequest)
+	})
+}
+
+func (r *Router) onAuthBindTempAuthKey(ctx context.Context, req *tg.AuthBindTempAuthKeyRequest) (bool, error) {
+	if !layerRPCProfileEvidenceFresh(ctx) {
+		// The inner request is outside MTProto's mutable msg_id window. It may be
+		// decoded request-locally, but acknowledging it would mutate the durable
+		// temp→perm identity and every live session from stale replay evidence.
+		return false, bindTempAuthKeyErr(auth.ErrTempAuthKeyEmpty)
+	}
+	if r.deps.Auth == nil {
+		return true, nil
+	}
+	id, _ := RawAuthKeyIDFrom(ctx)
+	if id == ([8]byte{}) {
+		id, _ = AuthKeyIDFrom(ctx)
+	}
+	sessionID, _ := SessionIDFrom(ctx)
+	boundState, err := r.deps.Auth.BindTempAuthKey(ctx, sessionID, domain.TempAuthKeyBinding{
+		TempAuthKeyID:    id,
+		PermAuthKeyID:    req.PermAuthKeyID,
+		Nonce:            req.Nonce,
+		ExpiresAt:        req.ExpiresAt,
+		EncryptedMessage: append([]byte(nil), req.EncryptedMessage...),
+	})
+	if err != nil {
+		return false, bindTempAuthKeyErr(err)
+	}
+	permID := authKeyIDFromInt64(req.PermAuthKeyID)
+	// The committed bind transaction is authoritative for this immutable
+	// temp→permanent identity. Replace any prior local entry, then publish the
+	// exact positive mapping so Layer publication and the first business RPC do
+	// not re-read the same row. A competing different-permanent bind has already
+	// failed in the store before reaching this point.
+	if id != ([8]byte{}) {
+		r.tempKeyResolveCache.Delete(id)
+		r.cacheResolvedAuthKey(id, permID)
+	}
+	// The v2 store composition commits canonical identity in PostgreSQL, then
+	// atomically merges raw/permanent Layer state in Redis and returns that exact
+	// effective tuple. Project it directly; a later read could observe a newer
+	// selector and wrongly attribute that generation to this bind.
+	r.invalidateAuthUserCache(id)
+	r.invalidateAuthUserCache(permID)
+	r.publishAuthInvalidation(ctx, id, permID)
+	unlockLayerCommit := r.lockAuthLayerCommit(id, permID)
+	defer unlockLayerCommit()
+	if r.deps.Sessions != nil {
+		if all, ok := r.deps.Sessions.(RawAuthKeyIdentityBinder); ok {
+			all.BindAuthKeyForRawAuthKey(id, permID)
+		} else {
+			r.deps.Sessions.BindAuthKeyForSession(id, sessionID, permID)
+		}
+	}
+	layer, blocked, err := r.cacheBoundAuthKeyLayerResolution(id, permID, boundState)
+	if err != nil {
+		if r.log != nil {
+			r.log.Error("project committed temp auth key bind Layer failed",
+				zap.String("raw_auth_key_id", fmt.Sprintf("%x", id[:])),
+				zap.String("perm_auth_key_id", fmt.Sprintf("%x", permID[:])),
+				zap.Error(err))
+		}
+		return false, internalErr()
+	}
+	if isSupportedLayer(layer) {
+		if refresher, ok := r.deps.Sessions.(AuthKeyLayerRefresher); ok {
+			refresher.RefreshInheritedLayerForRawAuthKey(id, layer)
+		} else if binder, ok := r.deps.Sessions.(AuthKeyLayerBinder); ok {
+			binder.SeedInheritedLayerForRawAuthKey(id, layer)
+		}
+	} else if blocked || layer == 0 {
+		if clearer, ok := r.deps.Sessions.(AuthKeyInheritedLayerClearer); ok {
+			clearer.ClearInheritedLayerForRawAuthKey(id)
+		}
+	}
+	return true, nil
+}
+
+func (r *Router) cacheBoundAuthKeyLayerResolution(
+	rawAuthKeyID, permAuthKeyID [8]byte,
+	result domain.TempAuthKeyBindingResult,
+) (layer int, blocked bool, err error) {
+	if result.Layer < 0 || result.LayerObservationID < 0 ||
+		(result.LayerObservationID > 0 && result.Layer == 0) {
+		return 0, false, fmt.Errorf(
+			"invalid bound auth-key Layer result layer=%d observation=%d",
+			result.Layer, result.LayerObservationID,
+		)
+	}
+	outcome := clientSessionInfo{
+		layer: result.Layer, layerObservationID: result.LayerObservationID,
+	}
+	if isSupportedLayer(result.Layer) {
+	} else if result.Layer != 0 {
+		outcome.layerBlocked = true
+		outcome.layerBlockedByAuthKey = true
+	}
+
+	r.clientInfoMu.Lock()
+	defer r.clientInfoMu.Unlock()
+	for _, authKeyID := range [][8]byte{rawAuthKeyID, permAuthKeyID} {
+		current := r.authInfo[authKeyID]
+		switch {
+		case current.layerObservationID > outcome.layerObservationID:
+			outcome.layer = current.layer
+			outcome.layerObservationID = current.layerObservationID
+			outcome.layerBlocked = current.layerBlocked
+			outcome.layerBlockedByAuthKey = current.layerBlockedByAuthKey
+		case current.layerObservationID == outcome.layerObservationID && outcome.layerObservationID > 0:
+			currentBlocked := current.layerBlocked || current.layerBlockedByAuthKey
+			outcomeBlocked := outcome.layerBlocked || outcome.layerBlockedByAuthKey
+			if current.layer != 0 && outcome.layer != 0 && current.layer != outcome.layer {
+				return 0, false, fmt.Errorf(
+					"conflicting cached bound auth-key Layer observation %d: %d != %d",
+					outcome.layerObservationID, current.layer, outcome.layer,
+				)
+			}
+			if currentBlocked != outcomeBlocked &&
+				(current.layer != 0 || outcome.layer != 0 || currentBlocked || outcomeBlocked) {
+				return 0, false, fmt.Errorf(
+					"conflicting cached bound auth-key blocked observation %d",
+					outcome.layerObservationID,
+				)
+			}
+			if outcome.layer == 0 {
+				outcome.layer = current.layer
+			}
+		}
+	}
+	if r.authInfo == nil {
+		r.authInfo = make(map[[8]byte]clientSessionInfo)
+	}
+	for _, authKeyID := range [][8]byte{rawAuthKeyID, permAuthKeyID} {
+		if _, exists := r.authInfo[authKeyID]; !exists {
+			evictMapEntryIfFullLocked(r.authInfo, maxAuthInfoEntries)
+		}
+		info := r.authInfo[authKeyID]
+		info.layer = outcome.layer
+		info.layerObservationID = outcome.layerObservationID
+		info.layerAdmissionSeq = 0
+		info.layerBlocked = outcome.layerBlocked
+		info.layerBlockedByAuthKey = outcome.layerBlockedByAuthKey
+		r.authInfo[authKeyID] = info
+	}
+	return outcome.layer, outcome.layerBlocked || outcome.layerBlockedByAuthKey, nil
+}
+
+// onAuthExportLoginToken 给 QR 登录请求方返回短期 token；扫码端接受后，同一目标
+// session 后续 export 会升级为 auth.loginTokenSuccess。
+func (r *Router) onAuthExportLoginToken(ctx context.Context, req *tg.AuthExportLoginTokenRequest) (tg.AuthLoginTokenClass, error) {
+	target, ok := loginTokenTargetFromContext(ctx)
+	if !ok {
+		return nil, internalErr()
+	}
+	authz := r.authzFromCtx(ctx)
+	result, err := r.loginTokens.exportContext(ctx, r.clock.Now(), target, authz, req.ExceptIDs)
+	if err != nil {
+		return nil, internalErr()
+	}
+	if result.accepted {
+		return r.authLoginTokenSuccess(ctx, result.acceptedAuth)
+	}
+	return &tg.AuthLoginToken{Expires: int(result.expires.Unix()), Token: result.token}, nil
+}
+
+func (r *Router) onAuthImportLoginToken(ctx context.Context, token []byte) (tg.AuthLoginTokenClass, error) {
+	result, err := r.loginTokens.lookupContext(ctx, r.clock.Now(), token)
+	if err != nil {
+		return nil, err
+	}
+	if result.accepted {
+		return r.authLoginTokenSuccess(ctx, result.acceptedAuth)
+	}
+	return &tg.AuthLoginToken{Expires: int(result.expires.Unix()), Token: result.token}, nil
+}
+
+func (r *Router) onAuthAcceptLoginToken(ctx context.Context, token []byte) (*tg.Authorization, error) {
+	userID, ok, err := r.currentUserID(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	if !ok || userID == 0 {
+		return nil, authKeyUnregisteredErr()
+	}
+	if r.deps.Auth == nil {
+		return nil, internalErr()
+	}
+	now := r.clock.Now()
+	accept, err := r.loginTokens.beginAcceptContext(ctx, now, token, userID)
+	if err != nil {
+		return nil, err
+	}
+	scannerAuthKeyID, _ := AuthKeyIDFrom(ctx)
+	if scannerAuthKeyID != ([8]byte{}) && scannerAuthKeyID == accept.authz.AuthKeyID {
+		r.loginTokens.failAcceptContext(ctx, token)
+		return nil, authTokenExceptionErr()
+	}
+	authz := accept.authz
+	authz.UserID = userID
+	authz.PasswordPending = false
+	if err := r.clearAuthKeyState(ctx, authz.AuthKeyID); err != nil {
+		r.loginTokens.failAcceptContext(ctx, token)
+		return nil, internalErr()
+	}
+	delivery, deliveryErr := r.signInDeliveryEffectsFor(accept.target.rawAuthKeyID, accept.target.sessionID)
+	if deliveryErr != nil {
+		r.loginTokens.failAcceptContext(ctx, token)
+		return nil, internalErr()
+	}
+	bound, err := r.deps.Auth.AcceptLoginToken(ctx, authz, userID, delivery)
+	if err != nil {
+		r.loginTokens.failAcceptContext(ctx, token)
+		if errors.Is(err, auth.ErrSystemUserLoginForbidden) {
+			return nil, authKeyUnregisteredErr()
+		}
+		return nil, internalErr()
+	}
+	if bound.UserID == 0 {
+		bound.UserID = userID
+	}
+	r.loginTokens.finishAcceptContext(ctx, now, token, userID, bound)
+	r.invalidateAuthUserCache(bound.AuthKeyID)
+	r.publishAuthInvalidation(ctx, bound.AuthKeyID)
+	r.setAuthUserCache(bound.AuthKeyID, userID, true)
+	r.bindLoginTokenTarget(accept.target, userID)
+	r.pushLoginTokenAccepted(ctx, accept.target)
+	out := tgAuthorization(bound, scannerAuthKeyID, int(now.Unix()))
+	return &out, nil
+}
+
+func loginTokenTargetFromContext(ctx context.Context) (loginTokenTarget, bool) {
+	authKeyID, _ := AuthKeyIDFrom(ctx)
+	rawAuthKeyID, _ := RawAuthKeyIDFrom(ctx)
+	if rawAuthKeyID == ([8]byte{}) {
+		rawAuthKeyID = authKeyID
+	}
+	sessionID, _ := SessionIDFrom(ctx)
+	return loginTokenTarget{rawAuthKeyID: rawAuthKeyID, authKeyID: authKeyID, sessionID: sessionID}, true
+}
+
+func (r *Router) authLoginTokenSuccess(ctx context.Context, a domain.Authorization) (tg.AuthLoginTokenClass, error) {
+	if r.deps.Users == nil || a.UserID == 0 {
+		return nil, internalErr()
+	}
+	u, err := r.deps.Users.Self(ctx, a.UserID)
+	if err != nil {
+		return nil, internalErr()
+	}
+	return &tg.AuthLoginTokenSuccess{
+		Authorization: &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)},
+	}, nil
+}
+
+func (r *Router) bindLoginTokenTarget(target loginTokenTarget, userID int64) {
+	if r.deps.Sessions == nil || target.sessionID == 0 {
+		return
+	}
+	r.deps.Sessions.BindAuthKeyForSession(target.rawAuthKeyID, target.sessionID, target.authKeyID)
+	r.deps.Sessions.BindUserForAuthKey(target.rawAuthKeyID, target.sessionID, userID)
+	r.announceSessionOnline(loginTokenTargetContext(target, userID), userID)
+}
+
+func loginTokenTargetContext(target loginTokenTarget, userID int64) context.Context {
+	ctx := context.Background()
+	ctx = WithRawAuthKeyID(ctx, target.rawAuthKeyID)
+	ctx = WithAuthKeyID(ctx, target.authKeyID)
+	ctx = WithSessionID(ctx, target.sessionID)
+	ctx = WithUserID(ctx, userID)
+	return ctx
+}
+
+func (r *Router) pushLoginTokenAccepted(ctx context.Context, target loginTokenTarget) {
+	if r.deps.Sessions == nil || target.sessionID == 0 {
+		return
+	}
+	immediate, ok := r.deps.Sessions.(ImmediateSessionPusher)
+	if !ok {
+		if r.log != nil {
+			r.log.Error("push login token accepted requires immediate session pusher",
+				zap.Int64("session_id", target.sessionID),
+			)
+		}
+		return
+	}
+	updates := &tg.UpdateShort{
+		Update: &tg.UpdateLoginToken{},
+		Date:   int(r.clock.Now().Unix()),
+	}
+	if err := immediate.PushToSessionForAuthKeyImmediate(ctx, target.rawAuthKeyID, target.sessionID, proto.MessageFromServer, updates); err != nil {
+		if r.log != nil {
+			r.log.Debug("push login token accepted immediate", zap.Int64("session_id", target.sessionID), zap.Error(err))
+		}
+	}
+}
+
+// onAuthSendCode 处理 auth.sendCode：生成 phone_code_hash 并返回 sentCode。
+// 若该手机号账号设置了登录邮箱，验证码改投递到邮箱，返回 sentCodeTypeEmailCode
+// （客户端据此进入"输入邮箱验证码"界面，随后用 auth.signIn 的 email_verification 完成登录）。
+func (r *Router) onAuthSendCode(ctx context.Context, req *tg.AuthSendCodeRequest) (tg.AuthSentCodeClass, error) {
+	if err := r.checkAuthCodeRateLimit(ctx, req.PhoneNumber); err != nil {
+		return nil, err
+	}
+	r.rememberClientAPIID(ctx, req.APIID)
+	hash, err := r.deps.Auth.SendCode(ctx, req.PhoneNumber)
+	if err != nil {
+		if errors.Is(err, auth.ErrPhoneNumberInvalid) ||
+			errors.Is(err, auth.ErrSystemUserLoginForbidden) {
+			return nil, phoneNumberInvalidErr()
+		}
+		// The public MTProto error intentionally stays opaque, but operators need
+		// the wrapped store/provider cause to repair an update-related failure.
+		// Hash the normalized phone so neither the number nor the OTP reaches logs.
+		phoneDigest := sha256.Sum256([]byte(domain.NormalizePhone(req.PhoneNumber)))
+		fields := append(r.contextLogFields(ctx),
+			zap.Int("api_id", req.APIID),
+			zap.String("phone_digest", hex.EncodeToString(phoneDigest[:8])),
+			zap.Error(err),
+		)
+		r.log.Error("auth.sendCode failed", fields...)
+		return nil, internalErr()
+	}
+	sent, err := r.tgSentCodeForHash(ctx, hash)
+	if err != nil {
+		fields := append(r.contextLogFields(ctx), zap.Error(err))
+		r.log.Error("auth.sendCode delivery lookup failed", fields...)
+		return nil, err
+	}
+	return sent, nil
+}
+
+func (r *Router) onAuthReportMissingCode(ctx context.Context, req *tg.AuthReportMissingCodeRequest) (bool, error) {
+	if req == nil || r.deps.AuthDeliveryReports == nil {
+		return false, inputRequestInvalidErr()
+	}
+	authKeyID, authKeyOK := AuthKeyIDFrom(ctx)
+	sessionID, sessionOK := SessionIDFrom(ctx)
+	if !authKeyOK || authKeyID == ([8]byte{}) || !sessionOK || sessionID == 0 {
+		return false, internalErr()
+	}
+	clientType := string(ClientTypeFrom(ctx))
+	if _, _, err := r.deps.AuthDeliveryReports.ReportMissingCode(ctx, domain.AuthMissingCodeReportRequest{
+		AuthKeyID: authKeyID, SessionID: sessionID, ClientType: clientType,
+		Phone: req.PhoneNumber, PhoneCodeHash: req.PhoneCodeHash,
+		MNC: req.Mnc, CreatedAt: r.clock.Now(),
+	}); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrPhoneCodeExpired):
+			return false, phoneCodeExpiredErr()
+		case errors.Is(err, domain.ErrPhoneCodeInvalid),
+			errors.Is(err, domain.ErrAuthDeliveryReportInvalid):
+			return false, phoneCodeInvalidErr()
+		case errors.Is(err, domain.ErrAuthDeliveryRateLimited):
+			return false, floodWaitErr(60)
+		default:
+			return false, internalErr()
+		}
+	}
+	return true, nil
+}
+
+func tgSentCode(hash string) tg.AuthSentCodeClass {
+	return tgSentCodeWithLength(hash, devCodeLength)
+}
+
+func tgSentCodeWithLength(hash string, length int) tg.AuthSentCodeClass {
+	if length <= 0 {
+		length = devCodeLength
+	}
+	return &tg.AuthSentCode{
+		Type:          &tg.AuthSentCodeTypeApp{Length: length},
+		PhoneCodeHash: hash,
+	}
+}
+
+func tgSMSSentCode(hash string, length int) tg.AuthSentCodeClass {
+	if length <= 0 {
+		length = devCodeLength
+	}
+	return &tg.AuthSentCode{
+		Type:          &tg.AuthSentCodeTypeSMS{Length: length},
+		PhoneCodeHash: hash,
+	}
+}
+
+func tgEmailSentCode(hash, emailPattern string, length int, resetAvailable bool) tg.AuthSentCodeClass {
+	if length <= 0 {
+		length = devCodeLength
+	}
+	codeType := &tg.AuthSentCodeTypeEmailCode{
+		EmailPattern: emailPattern,
+		Length:       length,
+	}
+	if resetAvailable {
+		// 0 means the SMS fallback is available immediately. Absence means this
+		// deployment cannot safely service auth.resetLoginEmail.
+		codeType.SetResetAvailablePeriod(0)
+	}
+	return &tg.AuthSentCode{
+		Type:          codeType,
+		PhoneCodeHash: hash,
+	}
+}
+
+type loginEmailResetAvailabilityChecker interface {
+	LoginEmailResetAvailable() bool
+}
+
+func (r *Router) loginEmailResetAvailable() bool {
+	checker, ok := r.deps.Auth.(loginEmailResetAvailabilityChecker)
+	return ok && checker.LoginEmailResetAvailable()
+}
+
+func tgEmailSetupRequiredSentCode(hash string) tg.AuthSentCodeClass {
+	return &tg.AuthSentCode{
+		Type:          &tg.AuthSentCodeTypeSetUpEmailRequired{},
+		PhoneCodeHash: hash,
+	}
+}
+
+func (r *Router) tgSentCodeForHash(ctx context.Context, hash string) (tg.AuthSentCodeClass, error) {
+	if r.deps.Auth == nil {
+		return tgSentCode(hash), nil
+	}
+	delivery, found, err := r.deps.Auth.CodeDelivery(ctx, hash)
+	if err != nil {
+		return nil, internalErr()
+	}
+	if !found {
+		return nil, signInErr(auth.ErrCodeExpired)
+	}
+	switch delivery.Kind {
+	case domain.AuthCodeDeliverySMS:
+		return tgSMSSentCode(hash, delivery.Length), nil
+	case domain.AuthCodeDeliveryEmail:
+		return tgEmailSentCode(hash, delivery.EmailPattern, delivery.Length, r.loginEmailResetAvailable()), nil
+	case domain.AuthCodeDeliveryEmailSetupRequired:
+		return tgEmailSetupRequiredSentCode(hash), nil
+	default:
+		return tgSentCodeWithLength(hash, delivery.Length), nil
+	}
+}
+
+// onAuthSignIn 处理 auth.signIn：校验验证码；用户不存在时返回 SignUpRequired。
+// 带 email_verification 时走登录邮箱路径（验证码来自邮箱而非短信）。
+func (r *Router) onAuthSignIn(ctx context.Context, req *tg.AuthSignInRequest) (tg.AuthAuthorizationClass, error) {
+	delivery, err := r.signInDeliveryEffects(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	var (
+		u          domain.User
+		needSignUp bool
+		signInErr  error
+	)
+	if verification, ok := req.GetEmailVerification(); ok {
+		u, _, needSignUp, signInErr = r.deps.Auth.SignInWithEmail(ctx, r.authzFromCtx(ctx), req.PhoneNumber, req.PhoneCodeHash, emailVerificationCode(verification), delivery)
+	} else {
+		u, _, needSignUp, signInErr = r.deps.Auth.SignIn(ctx, r.authzFromCtx(ctx), req.PhoneNumber, req.PhoneCodeHash, req.PhoneCode, delivery)
+	}
+	return r.finishAuthSignIn(ctx, u, needSignUp, signInErr)
+}
+
+func (r *Router) finishAuthSignIn(ctx context.Context, u domain.User, needSignUp bool, err error) (tg.AuthAuthorizationClass, error) {
+	if err != nil {
+		if errors.Is(err, domain.ErrSessionPasswordNeeded) && u.ID != 0 {
+			// 两步验证未完成：绝不能把 auth_key/session 标记为已登录，否则客户端忽略
+			// SESSION_PASSWORD_NEEDED、直接调用业务 RPC 即可绕过 2FA。失效缓存并把 session
+			// 置为未授权，让后续鉴权重新读到 password_pending 并拒绝；待 checkPassword 通过后再授权。
+			if id, ok := AuthKeyIDFrom(ctx); ok {
+				r.invalidateAuthUserCache(id)
+				r.publishAuthInvalidation(ctx, id)
+			}
+			r.bindSessionUser(ctx, 0)
+		}
+		return nil, signInErr(err)
+	}
+	if needSignUp {
+		return &tg.AuthAuthorizationSignUpRequired{}, nil
+	}
+	if id, ok := AuthKeyIDFrom(ctx); ok {
+		r.publishAuthInvalidation(ctx, id)
+		r.setAuthUserCache(id, u.ID, true)
+	}
+	r.bindSessionUser(ctx, u.ID)
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+func (r *Router) onAuthResendCode(ctx context.Context, req *tg.AuthResendCodeRequest) (tg.AuthSentCodeClass, error) {
+	if err := r.checkAuthCodeRateLimit(ctx, req.PhoneNumber); err != nil {
+		return nil, err
+	}
+	if userID, authorized, err := r.currentUserID(ctx); err == nil && authorized && userID != 0 {
+		if svc, ok := r.deps.Account.(accountDeletionService); ok {
+			authKeyID, _ := AuthKeyIDFrom(ctx)
+			sessionID, _ := SessionIDFrom(ctx)
+			hash, delivery, handled, err := svc.ResendConfirmPhoneCode(ctx, userID, authKeyID, sessionID, req.PhoneNumber, req.PhoneCodeHash)
+			if handled {
+				if err != nil {
+					return nil, accountDeletionErr(err)
+				}
+				return tgSMSSentCode(hash, delivery.Length), nil
+			}
+		}
+	}
+	var hash string
+	var err error
+	if scoped, ok := r.deps.Auth.(interface {
+		ResendCodeForAuthKey(context.Context, [8]byte, string, string) (string, error)
+	}); ok {
+		authKeyID, _ := AuthKeyIDFrom(ctx)
+		hash, err = scoped.ResendCodeForAuthKey(ctx, authKeyID, req.PhoneNumber, req.PhoneCodeHash)
+	} else {
+		hash, err = r.deps.Auth.ResendCode(ctx, req.PhoneNumber, req.PhoneCodeHash)
+	}
+	if err != nil {
+		return nil, signInErr(err)
+	}
+	return r.tgSentCodeForHash(ctx, hash)
+}
+
+func (r *Router) onAuthCancelCode(ctx context.Context, req *tg.AuthCancelCodeRequest) (bool, error) {
+	if userID, authorized, err := r.currentUserID(ctx); err == nil && authorized && userID != 0 {
+		if svc, ok := r.deps.Account.(accountDeletionService); ok {
+			authKeyID, _ := AuthKeyIDFrom(ctx)
+			handled, err := svc.CancelConfirmPhoneCode(ctx, userID, authKeyID, req.PhoneNumber, req.PhoneCodeHash)
+			if handled {
+				if err != nil {
+					return false, accountDeletionErr(err)
+				}
+				return true, nil
+			}
+		}
+	}
+	var err error
+	if scoped, ok := r.deps.Auth.(interface {
+		CancelCodeForAuthKey(context.Context, [8]byte, string, string) error
+	}); ok {
+		authKeyID, _ := AuthKeyIDFrom(ctx)
+		err = scoped.CancelCodeForAuthKey(ctx, authKeyID, req.PhoneNumber, req.PhoneCodeHash)
+	} else {
+		err = r.deps.Auth.CancelCode(ctx, req.PhoneNumber, req.PhoneCodeHash)
+	}
+	if err != nil {
+		return false, signInErr(err)
+	}
+	return true, nil
+}
+
+func (r *Router) onAuthResetAuthorizations(ctx context.Context) (bool, error) {
+	userID, _, err := r.currentUserID(ctx)
+	if err != nil {
+		return false, internalErr()
+	}
+	authKeyID, _ := AuthKeyIDFrom(ctx)
+	deleted, err := r.deps.Auth.ResetAuthorizations(ctx, userID, authKeyID)
+	if err != nil {
+		return false, internalErr()
+	}
+	for _, a := range deleted {
+		r.revokeAuthKeySessions(a.AuthKeyID)
+		_ = r.clearAuthKeyState(ctx, a.AuthKeyID)
+		// 撤销其它会话会删除其业务 authorization；协议 key 保留用于让客户端
+		// 重连后取得 AUTH_KEY_UNREGISTERED。密聊仍按设备授权边界 discard 并通知对端。
+		r.discardSecretChatsForAuthKey(ctx, businessAuthKeyInt64(a.AuthKeyID), userID)
+	}
+	return true, nil
+}
+
+func (r *Router) onAuthCheckPassword(ctx context.Context, password tg.InputCheckPasswordSRPClass) (tg.AuthAuthorizationClass, error) {
+	authKeyID, _ := AuthKeyIDFrom(ctx)
+	userID, authorized, pending, err := r.currentOrPendingPasswordUserID(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	if !pending && (!authorized || userID == 0) {
+		return nil, passwordHashInvalidErr()
+	}
+	if r.deps.Account == nil {
+		return nil, passwordHashInvalidErr()
+	}
+	if err := r.deps.Account.CheckPassword(ctx, userID, domainPasswordCheck(password)); err != nil {
+		return nil, passwordErr(err)
+	}
+	// 两步验证通过：清除 password_pending 并把 auth_key/session 提升为完全授权。
+	if pending {
+		if err := r.completePendingPasswordSignIn(ctx, authKeyID, userID); err != nil {
+			return nil, internalErr()
+		}
+	}
+	u, err := r.deps.Users.Self(ctx, userID)
+	if err != nil {
+		return nil, internalErr()
+	}
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+func (r *Router) onAuthRequestPasswordRecovery(ctx context.Context) (*tg.AuthPasswordRecovery, error) {
+	userID, _, _, err := r.currentOrPendingPasswordUserID(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	pattern, err := r.deps.Account.RequestPasswordRecovery(ctx, userID)
+	if err != nil {
+		return nil, passwordErr(err)
+	}
+	return &tg.AuthPasswordRecovery{EmailPattern: pattern}, nil
+}
+
+func (r *Router) onAuthRecoverPassword(ctx context.Context, req *tg.AuthRecoverPasswordRequest) (tg.AuthAuthorizationClass, error) {
+	authKeyID, _ := AuthKeyIDFrom(ctx)
+	userID, _, pending, err := r.currentOrPendingPasswordUserID(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	var input *domain.PasswordInputSettings
+	if settings, ok := req.GetNewSettings(); ok {
+		converted, err := domainPasswordInputSettings(settings)
+		if err != nil {
+			return nil, err
+		}
+		input = &converted
+	}
+	if err := r.deps.Account.RecoverPassword(ctx, userID, req.Code, input); err != nil {
+		return nil, passwordErr(err)
+	}
+	if pending {
+		if err := r.completePendingPasswordSignIn(ctx, authKeyID, userID); err != nil {
+			return nil, internalErr()
+		}
+	}
+	u, err := r.deps.Users.Self(ctx, userID)
+	if err != nil {
+		return nil, internalErr()
+	}
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+func (r *Router) onAuthCheckRecoveryPassword(ctx context.Context, code string) (bool, error) {
+	userID, _, _, err := r.currentOrPendingPasswordUserID(ctx)
+	if err != nil {
+		return false, internalErr()
+	}
+	if err := r.deps.Account.CheckRecoveryPassword(ctx, userID, code); err != nil {
+		return false, passwordErr(err)
+	}
+	return true, nil
+}
+
+// currentOrPendingPasswordUserID returns the fully authorized user when present;
+// otherwise it allows the narrow 2FA login continuation path to locate the user
+// attached to a password_pending auth key. The pending identity must not be used
+// by general business RPCs.
+func (r *Router) currentOrPendingPasswordUserID(ctx context.Context) (userID int64, authorized bool, passwordPending bool, err error) {
+	userID, authorized, err = r.currentUserID(ctx)
+	if err != nil || authorized {
+		return userID, authorized, false, err
+	}
+	if r.deps.Auth == nil {
+		return userID, authorized, false, nil
+	}
+	authKeyID, ok := AuthKeyIDFrom(ctx)
+	if !ok {
+		return userID, authorized, false, nil
+	}
+	pendingUserID, pending, err := r.deps.Auth.PendingPasswordUserID(ctx, authKeyID)
+	if err != nil {
+		return 0, false, false, err
+	}
+	if !pending || pendingUserID == 0 {
+		return userID, authorized, false, nil
+	}
+	return pendingUserID, false, true, nil
+}
+
+func (r *Router) completePendingPasswordSignIn(ctx context.Context, authKeyID [8]byte, userID int64) error {
+	if r.deps.Auth == nil {
+		return store.ErrDeliveryOutboxRequired
+	}
+	delivery, err := r.signInDeliveryEffects(ctx)
+	if err != nil {
+		return err
+	}
+	if err := r.deps.Auth.CompletePasswordSignIn(ctx, authKeyID, userID, delivery); err != nil {
+		return err
+	}
+	r.invalidateAuthUserCache(authKeyID)
+	r.publishAuthInvalidation(ctx, authKeyID)
+	r.setAuthUserCache(authKeyID, userID, true)
+	r.bindSessionUser(ctx, userID)
+	return nil
+}
+
+// onAuthResetLoginEmail 处理 auth.resetLoginEmail：用户登录设备时无法访问登录邮箱时
+// 清除登录邮箱，改回手机验证码登录，返回一个新的手机 sentCode 供其继续。
+type loginEmailResetConsumer interface {
+	ConsumeLoginEmailReset(ctx context.Context, phone, phoneCodeHash string) (userID int64, err error)
+	SendPhoneCodeAfterLoginEmailReset(ctx context.Context, phone string, expectedUserID int64) (string, error)
+}
+
+func (r *Router) onAuthResetLoginEmail(ctx context.Context, req *tg.AuthResetLoginEmailRequest) (tg.AuthSentCodeClass, error) {
+	if r.deps.Account == nil || r.deps.Auth == nil {
+		return nil, internalErr()
+	}
+	if err := r.checkAuthCodeRateLimit(ctx, req.PhoneNumber); err != nil {
+		return nil, err
+	}
+	resetConsumer, ok := r.deps.Auth.(loginEmailResetConsumer)
+	if !ok {
+		return nil, internalErr()
+	}
+	resetUserID, err := resetConsumer.ConsumeLoginEmailReset(ctx, req.PhoneNumber, req.PhoneCodeHash)
+	if err != nil {
+		return nil, signInErr(err)
+	}
+	if err := r.deps.Account.ClearLoginEmail(ctx, resetUserID); err != nil {
+		return nil, internalErr()
+	}
+	hash, err := resetConsumer.SendPhoneCodeAfterLoginEmailReset(ctx, req.PhoneNumber, resetUserID)
+	if err != nil {
+		if errors.Is(err, auth.ErrCodeExpired) || errors.Is(err, auth.ErrCodeInvalid) {
+			return nil, signInErr(err)
+		}
+		if errors.Is(err, auth.ErrPhoneNumberInvalid) ||
+			errors.Is(err, auth.ErrSystemUserLoginForbidden) {
+			return nil, phoneNumberInvalidErr()
+		}
+		return nil, internalErr()
+	}
+	return r.tgSentCodeForHash(ctx, hash)
+}
+
+// emailVerificationCode 从 emailVerification 取出可校验的字符串（验证码 / Google·Apple
+// 令牌）；最终必须由 auth service 对签发记录精确校验。
+// onAuthInitPasskeyLogin 处理 auth.initPasskeyLogin：生成一次性断言挑战（discoverable），
+// 以 DataJSON（顶层含 publicKey）返回。免授权（登录前）。
+func (r *Router) onAuthInitPasskeyLogin(ctx context.Context, req *tg.AuthInitPasskeyLoginRequest) (*tg.AuthPasskeyLoginOptions, error) {
+	if r.deps.Passkey == nil {
+		return &tg.AuthPasskeyLoginOptions{Options: tg.DataJSON{Data: "{}"}}, nil
+	}
+	options, err := r.deps.Passkey.InitLogin(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	return &tg.AuthPasskeyLoginOptions{Options: tg.DataJSON{Data: string(options)}}, nil
+}
+
+// onAuthFinishPasskeyLogin 处理 auth.finishPasskeyLogin：验证登录断言并绑定 auth_key。
+// 收尾与 signIn 同构（Bind 原子切换 update baseline → 授权缓存 → session 绑定）；
+// passkey 是强因子，直接完全授权
+// （不走 SESSION_PASSWORD_NEEDED）。FromDCID/FromAuthKeyID 为多 DC 重路由用，本单 DC 忽略。
+func (r *Router) onAuthFinishPasskeyLogin(ctx context.Context, req *tg.AuthFinishPasskeyLoginRequest) (tg.AuthAuthorizationClass, error) {
+	if r.deps.Passkey == nil || r.deps.Auth == nil {
+		return nil, internalErr()
+	}
+	credID, login, ok := passkeyLoginFromCredential(req.Credential)
+	if !ok {
+		return nil, passkeyErr(domain.ErrPasskeyInvalid)
+	}
+	userID, err := r.deps.Passkey.FinishLogin(ctx, credID, []byte(login.ClientData.Data), login.AuthenticatorData, login.Signature, login.UserHandle)
+	if err != nil {
+		return nil, passkeyErr(err)
+	}
+	delivery, err := r.signInDeliveryEffects(ctx)
+	if err != nil {
+		return nil, internalErr()
+	}
+	u, err := r.deps.Auth.BindVerifiedLogin(ctx, r.authzFromCtx(ctx), userID, delivery)
+	if err != nil {
+		return nil, passkeyErr(err)
+	}
+	if id, ok := AuthKeyIDFrom(ctx); ok {
+		r.publishAuthInvalidation(ctx, id)
+		r.setAuthUserCache(id, u.ID, true)
+	}
+	r.bindSessionUser(ctx, u.ID)
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+func emailVerificationCode(v tg.EmailVerificationClass) string {
+	switch e := v.(type) {
+	case *tg.EmailVerificationCode:
+		return e.Code
+	case *tg.EmailVerificationGoogle:
+		return e.Token
+	case *tg.EmailVerificationApple:
+		return e.Token
+	}
+	return ""
+}
+
+// onAuthImportBotAuthorization 处理 auth.importBotAuthorization：bot 程序凭 token
+// 登录为 bot 账号。api_id/api_hash 与现有 sendCode 行为一致不校验（无 app 注册表）。
+// 收尾与 signIn 同构（Bind 原子切换 update baseline → 授权缓存 → session 绑定），但不写登录消息、不推
+// signIn 服务通知——那是手机登录语义。
+func (r *Router) onAuthImportBotAuthorization(ctx context.Context, req *tg.AuthImportBotAuthorizationRequest) (tg.AuthAuthorizationClass, error) {
+	if r.deps.Auth == nil {
+		return nil, accessTokenInvalidErr()
+	}
+	u, err := r.deps.Auth.SignInBot(ctx, r.authzFromCtx(ctx), req.BotAuthToken)
+	if err != nil {
+		return nil, importBotAuthorizationErr(err)
+	}
+	if id, ok := AuthKeyIDFrom(ctx); ok {
+		r.publishAuthInvalidation(ctx, id)
+		r.setAuthUserCache(id, u.ID, true)
+	}
+	r.bindSessionUser(ctx, u.ID)
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+// onAuthSignUp 处理 auth.signUp：创建用户并绑定授权。
+func (r *Router) onAuthSignUp(ctx context.Context, req *tg.AuthSignUpRequest) (tg.AuthAuthorizationClass, error) {
+	u, loginMessage, err := r.deps.Auth.SignUp(ctx, r.authzFromCtx(ctx), req.PhoneNumber, req.PhoneCodeHash, req.FirstName, req.LastName)
+	if err != nil {
+		return nil, signInErr(err)
+	}
+	if id, ok := AuthKeyIDFrom(ctx); ok {
+		r.setAuthUserCache(id, u.ID, true)
+	}
+	r.bindSessionUser(ctx, u.ID)
+	r.enqueueLoginMessageBootstrap(ctx, loginMessage)
+	return &tg.AuthAuthorization{User: r.tgSelfUserWithUsernames(ctx, u)}, nil
+}
+
+// onAuthLogOut 处理 auth.logOut：解绑当前 auth_key 的授权。
+func (r *Router) onAuthLogOut(ctx context.Context) (*tg.AuthLoggedOut, error) {
+	id, _ := AuthKeyIDFrom(ctx)
+	userID, authorized, userErr := r.currentUserID(ctx)
+	if err := r.deps.Auth.LogOut(ctx, id); err != nil {
+		return nil, internalErr()
+	}
+	r.invalidateAuthUserCache(id)
+	r.publishAuthInvalidation(ctx, id)
+	r.unbindAuthKey(id)
+	// bot 登出不广播 offline（bot 无 presence 语义，与登录路径对称）。
+	if userErr == nil && authorized && userID != 0 && !r.userIsBot(ctx, userID) {
+		status, _ := r.setPresenceFromContext(ctx, userID, true, presencePersistSync)
+		r.pushUserStatus(ctx, userID, status)
+		// 登出后主动清掉本 session 的 presence 条目：连接通常不断开（客户端回登录页），
+		// 上面 unbindAuthKey 已把连接 userID 清 0，TCP 真正断开时 SessionOffline 因 userID=0
+		// 提前返回、不再清 presence，条目会以 offline 态滞留泄露。这里随登出一并清除。
+		if key, ok := presenceSessionKeyFromContext(ctx); ok {
+			r.presence.clearSession(key)
+		}
+	}
+	// 登出撤销本设备 authorization 后，级联 discard 其绑定的活跃密聊并通知对端
+	//（否则对端继续往已退出设备投递成静默死链）。best-effort，不阻断登出。
+	if userErr == nil && userID != 0 {
+		r.discardSecretChatsForAuthKey(ctx, businessAuthKeyInt64(id), userID)
+	}
+	if err := r.clearAuthKeyState(ctx, id); err != nil {
+		return nil, internalErr()
+	}
+	return &tg.AuthLoggedOut{}, nil
+}
+
+func (r *Router) clearAuthKeyState(ctx context.Context, authKeyID [8]byte) error {
+	if r.deps.Updates == nil {
+		return nil
+	}
+	return r.deps.Updates.ClearAuthKey(ctx, authKeyID)
+}
+
+func (r *Router) bindSessionUser(ctx context.Context, userID int64) {
+	if r.deps.Sessions == nil {
+		return
+	}
+	sessionID, ok := SessionIDFrom(ctx)
+	if !ok {
+		return
+	}
+	r.deps.Sessions.BindUserForAuthKey(rawAuthKeyIDForOrigin(ctx), sessionID, userID)
+	r.announceSessionOnline(ctx, userID)
+}
+
+func (r *Router) unbindAuthKey(authKeyID [8]byte) {
+	if r.deps.Sessions == nil {
+		return
+	}
+	r.deps.Sessions.UnbindAuthKey(authKeyID)
+}
+
+// revokeAuthKeySessions 是授权撤销（被踢设备）的完整失效闭环：清 Router 授权缓存、
+// 清 temp→perm 短缓存、强制断开在线连接、再兜底解绑。断开不可省略——出站推送用
+// 连接持有的密钥加密、不回查授权表，perm-key 连接的授权缓存也只有重连才会重新回查；
+// 不断开的话被踢设备仍能持续收到推送并以缓存身份继续发请求。重连后回查 store 即得
+// 未授权（401）。
+//
+// 顺序关键：先 CloseSessionsForBusinessAuthKey 再 unbindAuthKey。Close 内部 removeLocked
+// 读取连接当前 userID 生成 SessionOffline 事件（驱动 presence 清理与 offline 广播）；
+// 若先 unbind 把 userID 清成 0，事件就退化为 userID=0，被踢设备的 presence 条目不被
+// 清理、好友侧最长一个在线 TTL 仍显示其在线。Close 已把连接移出索引，随后的 unbind
+// 对未实现 SessionTerminator 的 Sessions 才有意义（生产实现走 Close 即可，unbind 是 no-op）。
+func (r *Router) revokeAuthKeySessions(authKeyID [8]byte) {
+	_ = r.revokeAuthKeySessionsBounded(context.Background(), authKeyID)
+}
+
+func (r *Router) revokeAuthKeySessionsBounded(ctx context.Context, authKeyID [8]byte) error {
+	r.invalidateAuthUserCache(authKeyID)
+	rawTempAuthKeyIDs := r.invalidateTempAuthKeyCacheForPerm(authKeyID)
+	invalidateIDs := append([][8]byte{authKeyID}, rawTempAuthKeyIDs...)
+	r.publishAuthInvalidation(context.Background(), invalidateIDs...)
+	var closeErr error
+	if terminator, ok := r.deps.Sessions.(BoundedSessionTerminator); ok {
+		_, closeErr = terminator.CloseSessionsForBusinessAuthKeyBounded(ctx, authKeyID)
+	} else if terminator, ok := r.deps.Sessions.(SessionTerminator); ok {
+		terminator.CloseSessionsForBusinessAuthKey(authKeyID)
+	}
+	if terminator, ok := r.deps.Sessions.(BoundedRawSessionTerminator); ok {
+		for _, rawAuthKeyID := range rawTempAuthKeyIDs {
+			if rawAuthKeyID == authKeyID {
+				continue
+			}
+			_, err := terminator.CloseSessionsForRawAuthKeyExceptBounded(ctx, rawAuthKeyID, 0)
+			closeErr = errors.Join(closeErr, err)
+		}
+	} else if terminator, ok := r.deps.Sessions.(RawSessionTerminator); ok {
+		for _, rawAuthKeyID := range rawTempAuthKeyIDs {
+			if rawAuthKeyID == authKeyID {
+				continue
+			}
+			terminator.CloseSessionsForRawAuthKeyExcept(rawAuthKeyID, 0)
+		}
+	}
+	r.unbindAuthKey(authKeyID)
+	return closeErr
+}
+
+func (r *Router) invalidateTempAuthKeyCacheForPerm(authKeyID [8]byte) [][8]byte {
+	return r.tempKeyResolveCache.DeleteByPerm(authKeyID)
+}
+
+func (r *Router) signInDeliveryEffects(ctx context.Context) (store.DeliveryEffectsBuilder[store.AuthorizationDeliverySnapshot], error) {
+	excludeAuthKeyID, excludeSessionID := deliveryExclusionFromContext(ctx)
+	return r.signInDeliveryEffectsFor(excludeAuthKeyID, excludeSessionID)
+}
+
+func (r *Router) signInDeliveryEffectsFor(excludeAuthKeyID [8]byte, excludeSessionID int64) (store.DeliveryEffectsBuilder[store.AuthorizationDeliverySnapshot], error) {
+	if r.deps.DeliveryOutbox == nil || excludeAuthKeyID == ([8]byte{}) || excludeSessionID == 0 {
+		return nil, store.ErrDeliveryOutboxRequired
+	}
+	return func(snapshot store.AuthorizationDeliverySnapshot) ([]store.DeliveryEffect, error) {
+		if snapshot.User.ID <= 0 || snapshot.Authorization.UserID != snapshot.User.ID {
+			return nil, fmt.Errorf("sign-in delivery snapshot mismatch")
+		}
+		payload, err := encodeDeliveryUpdate(r.tgSignInServiceNotificationForAuthorization(snapshot.User, snapshot.Authorization))
+		if err != nil {
+			return nil, fmt.Errorf("encode sign-in service notification: %w", err)
+		}
+		return []store.DeliveryEffect{store.AbsoluteDeliveryEffect(store.DeliveryOutboxEnqueue{
+			TargetUserID: snapshot.User.ID, ExcludeAuthKeyID: excludeAuthKeyID,
+			ExcludeSessionID: excludeSessionID, Payload: payload,
+			RecoveryPolicy: store.OutboxRecoveryAbsoluteReload,
+		})}, nil
+	}, nil
+}
+
+func (r *Router) tgSignInServiceNotification(ctx context.Context, u domain.User, authKeyID [8]byte) *tg.Updates {
+	a := r.authzFromCtx(ctx)
+	a.AuthKeyID = authKeyID
+	a.UserID = u.ID
+	return r.tgSignInServiceNotificationForAuthorization(u, a)
+}
+
+func (r *Router) tgSignInServiceNotificationForAuthorization(u domain.User, authorization domain.Authorization) *tg.Updates {
+	now := r.clock.Now()
+	client := "Unknown device"
+	parts := []string{}
+	if authorization.DeviceModel != "" {
+		parts = append(parts, branding.UserVisibleText(authorization.DeviceModel, ""))
+	}
+	if authorization.SystemVersion != "" {
+		parts = append(parts, branding.UserVisibleText(authorization.SystemVersion, ""))
+	}
+	if authorization.AppVersion != "" {
+		parts = append(parts, branding.UserVisibleText(authorization.AppVersion, ""))
+	}
+	if len(parts) > 0 {
+		client = strings.Join(parts, " / ")
+	}
+	name := strings.TrimSpace(strings.TrimSpace(u.FirstName + " " + u.LastName))
+	if name == "" {
+		name = u.Phone
+	}
+	if name == "" {
+		name = "there"
+	}
+	message := fmt.Sprintf("New login.\nDear %s, we detected a login into your account from a new device on %s.\n\nDevice: %s\nLocation: Unknown\n\nIf this wasn't you, you can terminate that session in Settings > Devices (or Privacy & Security > Active Sessions).",
+		name,
+		now.UTC().Format(time.RFC1123),
+		client,
+	)
+	authID := int64(binary.LittleEndian.Uint64(authorization.AuthKeyID[:]))
+	update := &tg.UpdateServiceNotification{
+		InboxDate: int(now.Unix()),
+		Type:      fmt.Sprintf("auth%d_%d", authID, now.Unix()),
+		Message:   message,
+		Media:     &tg.MessageMediaEmpty{},
+		Entities:  signInNotificationEntities(message),
+	}
+	return &tg.Updates{
+		Updates: []tg.UpdateClass{update},
+		Date:    int(now.Unix()),
+	}
+}
+
+func signInNotificationEntities(message string) []tg.MessageEntityClass {
+	terms := []string{"New login.", "Settings > Devices", "Privacy & Security > Active Sessions"}
+	out := make([]tg.MessageEntityClass, 0, len(terms))
+	for _, term := range terms {
+		if offset := strings.Index(message, term); offset >= 0 {
+			out = append(out, &tg.MessageEntityBold{Offset: offset, Length: len(term)})
+		}
+	}
+	return out
+}
+
+func authKeyIDFromInt64(v int64) [8]byte {
+	var id [8]byte
+	binary.LittleEndian.PutUint64(id[:], uint64(v))
+	return id
+}

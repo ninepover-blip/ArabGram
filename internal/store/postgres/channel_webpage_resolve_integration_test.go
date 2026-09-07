@@ -1,0 +1,99 @@
+package postgres
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"telesrv/internal/domain"
+)
+
+// TestChannelStoreResolveWebPageIntegration 对 live Postgres 验证频道 WebPageResolve 分支：
+// media 就地换 done、body/edit_date 不变、durable channel_web_page 事件被白名单接受（迁移0016）、
+// 历史读回 done、幂等。需 TELESRV_TEST_POSTGRES_DSN。
+func TestChannelStoreResolveWebPageIntegration(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	suffix := randomSuffix(t)
+
+	users := NewUserStore(pool)
+	owner, err := users.Create(ctx, domain.User{AccessHash: 51, Phone: "+1668" + suffix + "11", FirstName: "ChWPOwner"})
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	var channelID int64
+	t.Cleanup(func() {
+		if channelID != 0 {
+			_, _ = pool.Exec(ctx, "DELETE FROM channels WHERE id = $1", channelID)
+		}
+		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", owner.ID)
+	})
+
+	channels := newTestChannelStore(pool)
+	created, err := channels.CreateChannel(ctx, domain.CreateChannelRequest{CreatorUserID: owner.ID, Title: "ChWP " + suffix, Megagroup: true, Date: 1700000300})
+	if err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	channelID = created.Channel.ID
+
+	const url = "https://example.com/c"
+	urlHash := domain.WebPageURLHash(url)
+	sent, err := channels.SendChannelMessage(ctx, domain.SendChannelMessageRequest{
+		UserID: owner.ID, ChannelID: channelID, RandomID: 9911, Message: "see " + url, Date: 1700000301,
+		Media: &domain.MessageMedia{Kind: domain.MessageMediaKindWebPage, WebPage: &domain.MessageWebPage{State: domain.MessageWebPageStatePending, ID: urlHash, URL: url}},
+	})
+	if err != nil {
+		t.Fatalf("send channel message: %v", err)
+	}
+
+	done := &domain.MessageMedia{Kind: domain.MessageMediaKindWebPage, WebPage: &domain.MessageWebPage{State: domain.MessageWebPageStateDone, ID: urlHash, URL: url, DisplayURL: "example.com", Title: "Example"}}
+	resolveReq := domain.EditChannelMessageRequest{UserID: owner.ID, ChannelID: channelID, ID: sent.Message.ID, Media: done, WebPageResolve: true, ExpectedWebPageID: urlHash}
+	res, err := channels.EditChannelMessage(ctx, resolveReq)
+	if err != nil {
+		t.Fatalf("EditChannelMessage(WebPageResolve): %v", err)
+	}
+	if res.Event.Type != domain.ChannelUpdateWebPage {
+		t.Fatalf("event type = %q, want channel_web_page", res.Event.Type)
+	}
+	if res.Message.Media == nil || res.Message.Media.WebPage == nil || res.Message.Media.WebPage.State != domain.MessageWebPageStateDone {
+		t.Fatalf("message media not resolved: %+v", res.Message.Media)
+	}
+	if res.Message.Body != "see "+url || res.Message.EditDate != 0 {
+		t.Fatalf("body/edit_date changed: body=%q edit_date=%d", res.Message.Body, res.Message.EditDate)
+	}
+
+	// durable 事件被白名单接受（迁移0016）+ 类型正确。
+	var eventType string
+	if err := pool.QueryRow(ctx, `SELECT event_type FROM channel_update_events WHERE channel_id = $1 ORDER BY pts DESC LIMIT 1`, channelID).Scan(&eventType); err != nil {
+		t.Fatalf("read latest channel event: %v", err)
+	}
+	if eventType != string(domain.ChannelUpdateWebPage) {
+		t.Fatalf("latest channel event type = %q, want channel_web_page", eventType)
+	}
+
+	// 历史读回 media=done，body/edit_date 不变。
+	hist, err := channels.ListChannelHistory(ctx, owner.ID, domain.ChannelHistoryFilter{ChannelID: channelID, Limit: 10})
+	if err != nil {
+		t.Fatalf("list channel history: %v", err)
+	}
+	var found bool
+	for _, m := range hist.Messages {
+		if m.ID == sent.Message.ID {
+			found = true
+			if m.Media == nil || m.Media.WebPage == nil || m.Media.WebPage.State != domain.MessageWebPageStateDone {
+				t.Fatalf("history media not resolved: %+v", m.Media)
+			}
+			if m.Body != "see "+url || m.EditDate != 0 {
+				t.Fatalf("history body/edit_date changed: body=%q edit_date=%d", m.Body, m.EditDate)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("message %d not in history", sent.Message.ID)
+	}
+
+	// 幂等。
+	if _, err := channels.EditChannelMessage(ctx, resolveReq); !errors.Is(err, domain.ErrMessageNotModified) {
+		t.Fatalf("re-resolve err = %v, want ErrMessageNotModified", err)
+	}
+}

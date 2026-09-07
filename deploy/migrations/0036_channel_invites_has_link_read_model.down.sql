@@ -1,0 +1,3 @@
+DROP TRIGGER IF EXISTS channel_invites_channel_base_read_model_changed ON public.channel_invites;
+DROP FUNCTION IF EXISTS public.telesrv_notify_channel_invites_channel_base_read_model();
+DROP INDEX IF EXISTS public.channel_invites_channel_active_idx;

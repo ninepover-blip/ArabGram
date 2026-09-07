@@ -1,0 +1,246 @@
+package links
+
+import (
+	"net/url"
+	"strings"
+	"testing"
+)
+
+func TestNormalizeBaseURL(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "default", raw: "", want: "https://telesrv.net"},
+		{name: "host only", raw: "telesrv.net/", want: "https://telesrv.net"},
+		{name: "local http", raw: "http://127.0.0.1:2401/", want: "http://127.0.0.1:2401"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NormalizeBaseURL(tt.raw); got != tt.want {
+				t.Fatalf("NormalizeBaseURL(%q) = %q, want %q", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateBaseURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{name: "default", raw: "", want: "https://telesrv.net"},
+		{name: "host and path", raw: "links.example.test/root/", want: "https://links.example.test/root"},
+		{name: "local HTTP", raw: "http://127.0.0.1:2401/", want: "http://127.0.0.1:2401"},
+		{name: "missing host", raw: "https://", wantErr: true},
+		{name: "unsupported scheme", raw: "ftp://links.example.test", wantErr: true},
+		{name: "credentials", raw: "https://user:pass@links.example.test", wantErr: true},
+		{name: "query", raw: "https://links.example.test/root?tenant=one", wantErr: true},
+		{name: "fragment", raw: "https://links.example.test/root#links", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateBaseURL(tt.raw)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ValidateBaseURL(%q) succeeded with %q", tt.raw, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ValidateBaseURL(%q): %v", tt.raw, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ValidateBaseURL(%q) = %q, want %q", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateAppScheme(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{name: "default", raw: "", want: "telesrv"},
+		{name: "normalized", raw: "  My-App+Dev  ", want: "my-app+dev"},
+		{name: "starts with digit", raw: "1app", wantErr: true},
+		{name: "colon", raw: "myapp:", wantErr: true},
+		{name: "official tg", raw: "tg", wantErr: true},
+		{name: "http", raw: "http", wantErr: true},
+		{name: "https", raw: "https", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ValidateAppScheme(tc.raw)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ValidateAppScheme(%q) error = %v, wantErr %v", tc.raw, err, tc.wantErr)
+			}
+			if got != tc.want {
+				t.Fatalf("ValidateAppScheme(%q) = %q, want %q", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateAppLinkBase(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{name: "disabled", raw: "", want: ""},
+		{name: "normalized", raw: " OWPG://Example.Test/ ", want: "owpg://example.test"},
+		{name: "missing host", raw: "owpg://", wantErr: true},
+		{name: "reserved scheme", raw: "https://example.test", wantErr: true},
+		{name: "credentials", raw: "owpg://user@example.test", wantErr: true},
+		{name: "port", raw: "owpg://example.test:443", wantErr: true},
+		{name: "path", raw: "owpg://example.test/root", wantErr: true},
+		{name: "query", raw: "owpg://example.test?tenant=one", wantErr: true},
+		{name: "fragment", raw: "owpg://example.test#root", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ValidateAppLinkBase(tc.raw)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ValidateAppLinkBase(%q) error = %v, wantErr %v", tc.raw, err, tc.wantErr)
+			}
+			if got != tc.want {
+				t.Fatalf("ValidateAppLinkBase(%q) = %q, want %q", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAppLinkBuilderPreservesLegacyAndSupportsHostBase(t *testing.T) {
+	legacy, err := NewAppLinkBuilder("telesrv", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := legacy.Build("oauth", url.Values{"token": {"a+b"}}), "telesrv://oauth?token=a%2Bb"; got != want {
+		t.Fatalf("legacy OAuth = %q, want %q", got, want)
+	}
+	if got, want := legacy.BuildUsername("Alice", url.Values{"start": {"hello"}}), "telesrv://resolve?domain=Alice&start=hello"; got != want {
+		t.Fatalf("legacy username = %q, want %q", got, want)
+	}
+
+	hosted, err := NewAppLinkBuilder("telesrv", "owpg://links.example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := hosted.Build("oauth", url.Values{"token": {"a+b"}}), "owpg://links.example.test/oauth?token=a%2Bb"; got != want {
+		t.Fatalf("hosted OAuth = %q, want %q", got, want)
+	}
+	if got, want := hosted.BuildUsername("Alice", url.Values{"domain": {"spoofed"}, "start": {"hello"}}), "owpg://links.example.test/Alice?start=hello"; got != want {
+		t.Fatalf("hosted username = %q, want %q", got, want)
+	}
+
+	for _, tc := range []struct {
+		raw  string
+		want bool
+	}{
+		{raw: "telesrv://oauth?token=x", want: true},
+		{raw: "owpg://links.example.test/oauth?token=x", want: true},
+		{raw: "owpg://other.example.test/oauth?token=x", want: false},
+		{raw: "owpg://links.example.test/oauth/extra?token=x", want: false},
+		{raw: "owpg://links.example.test/resolve?token=x", want: false},
+	} {
+		parsed, err := url.Parse(tc.raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := hosted.MatchesRoute(parsed, "oauth"); got != tc.want {
+			t.Fatalf("MatchesRoute(%q) = %v, want %v", tc.raw, got, tc.want)
+		}
+	}
+}
+
+func TestAppLinkBuilderAcceptsEntityURL(t *testing.T) {
+	hosted, err := NewAppLinkBuilder("telesrv", "owpg://links.example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "legacy route", raw: "telesrv://resolve?domain=Alice", want: true},
+		{name: "legacy case insensitive", raw: "TELESRV://resolve?domain=Alice", want: true},
+		{name: "configured host base", raw: "owpg://links.example.test/Alice", want: true},
+		{name: "configured host case insensitive", raw: "OWPG://LINKS.EXAMPLE.TEST/Alice", want: true},
+		{name: "same scheme wrong host", raw: "owpg://other.example.test/Alice", want: false},
+		{name: "credentials", raw: "telesrv://user@resolve/path", want: false},
+		{name: "port", raw: "telesrv://resolve:443/path", want: false},
+		{name: "unconfigured scheme", raw: "other://resolve", want: false},
+		{name: "missing route host", raw: "telesrv://", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := hosted.AcceptsEntityURL(tc.raw); got != tc.want {
+				t.Fatalf("AcceptsEntityURL(%q) = %v, want %v", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateAppName(t *testing.T) {
+	if got, err := ValidateAppName("  Example Chat  "); err != nil || got != "Example Chat" {
+		t.Fatalf("ValidateAppName valid = %q, %v", got, err)
+	}
+	for _, raw := range []string{"", "   ", "bad\nname", strings.Repeat("x", 65)} {
+		if got, err := ValidateAppName(raw); err == nil {
+			t.Fatalf("ValidateAppName(%q) = %q, want error", raw, got)
+		}
+	}
+}
+
+func TestBuildPreservesBasePathAndQuery(t *testing.T) {
+	got := Build("http://127.0.0.1:2401/root/", "/call/abc", url.Values{"slug": []string{"abc"}})
+	if want := "http://127.0.0.1:2401/root/call/abc?slug=abc"; got != want {
+		t.Fatalf("Build = %q, want %q", got, want)
+	}
+}
+
+func TestBuildDoesNotDoubleEscapeBasePath(t *testing.T) {
+	got := Build("http://127.0.0.1:2401/root%20path/", "/addlist/slug", nil)
+	if want := "http://127.0.0.1:2401/root%20path/addlist/slug"; got != want {
+		t.Fatalf("Build encoded path = %q, want %q", got, want)
+	}
+}
+
+func TestHostDropsPort(t *testing.T) {
+	if got, want := Host("http://127.0.0.1:2401"), "127.0.0.1"; got != want {
+		t.Fatalf("Host = %q, want %q", got, want)
+	}
+}
+
+func TestCleanAndValidateChatlistSlug(t *testing.T) {
+	tests := []struct {
+		name  string
+		raw   string
+		clean string
+		valid bool
+	}{
+		{name: "raw", raw: "abc.DEF-12", clean: "abc.DEF-12", valid: true},
+		{name: "public url", raw: "http://127.0.0.1:2401/addlist/abc-12?x=1", clean: "abc-12", valid: true},
+		{name: "app url", raw: "telesrv://addlist?slug=abc_12", clean: "abc_12", valid: true},
+		{name: "bad char", raw: "abc/../bad!", clean: "bad!", valid: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CleanChatlistSlug(tt.raw)
+			if got != tt.clean {
+				t.Fatalf("CleanChatlistSlug(%q) = %q, want %q", tt.raw, got, tt.clean)
+			}
+			if valid := ValidChatlistSlug(got); valid != tt.valid {
+				t.Fatalf("ValidChatlistSlug(%q) = %v, want %v", got, valid, tt.valid)
+			}
+		})
+	}
+}

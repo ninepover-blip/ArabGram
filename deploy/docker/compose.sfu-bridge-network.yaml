@@ -1,0 +1,42 @@
+services:
+  sfu:
+    # Compatibility fallback for hosts without network_mode: host. It restores
+    # Compose DNS/isolation and publishes the bounded UDP relay range 1:1.
+    network_mode: !reset null
+    environment:
+      TELESRV_REDIS_ADDR: redis:6379
+      TELESRV_GROUPCALL_CONTROL_URL: http://core:2420
+      TELESRV_SFU_CONTROL_GRPC_URL: grpc://${TELESRV_SFU_INSTANCE_ID:-sfu-1}:2450
+      TELESRV_TURN_RELAY_MAX_PORT: ${TELESRV_TURN_BRIDGE_RELAY_MAX_PORT:-12563}
+    expose:
+      - "2450"
+    ports:
+      - name: sfu-media
+        target: ${TELESRV_SFU_UDP_PORT:-12399}
+        published: "${TELESRV_SFU_UDP_PORT:-12399}"
+        host_ip: ${TELESRV_PUBLIC_BIND_IP:-0.0.0.0}
+        protocol: udp
+      - name: turn
+        target: ${TELESRV_TURN_UDP_PORT:-12400}
+        published: "${TELESRV_TURN_UDP_PORT:-12400}"
+        host_ip: ${TELESRV_TURN_BIND_IP:-127.0.0.1}
+        protocol: udp
+      - "${TELESRV_TURN_BIND_IP:-127.0.0.1}:${TELESRV_TURN_RELAY_MIN_PORT:-12500}-${TELESRV_TURN_BRIDGE_RELAY_MAX_PORT:-12563}:${TELESRV_TURN_RELAY_MIN_PORT:-12500}-${TELESRV_TURN_BRIDGE_RELAY_MAX_PORT:-12563}/udp"
+    healthcheck:
+      test:
+        - CMD
+        - telesrv-healthcheck
+        - all
+        - --grpc
+        - 127.0.0.1:2450,telesrv.sfu.v1.SFUControlService,TELESRV_SFU_CONTROL_TOKEN
+        - --tcp
+        - core:2420
+        - --redis
+        - redis:6379,TELESRV_REDIS_PASSWORD,0
+        - --timeout
+        - 3s
+    networks:
+      control:
+        aliases:
+          - ${TELESRV_SFU_INSTANCE_ID:-sfu-1}
+      outbound: {}

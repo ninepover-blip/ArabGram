@@ -1,0 +1,38 @@
+version: 1
+
+instance:
+  id: ${TELESRV_INSTANCE_ID}
+
+debug:
+  addr: 127.0.0.1:6062
+
+public:
+  dc: 2
+  default_country_code: ${TELESRV_DEFAULT_COUNTRY_CODE}
+  advertise:
+    ip: ${TELESRV_ADVERTISE_IP}
+    port: ${TELESRV_ADVERTISE_PORT}
+  base_url: ${TELESRV_PUBLIC_BASE_URL}
+  app_scheme: ${TELESRV_PUBLIC_APP_SCHEME}
+  web_base_url: ${TELESRV_PUBLIC_WEB_BASE_URL}
+
+postgres:
+  dsn: ${TELESRV_POSTGRES_DSN}
+  max_conns: 16
+  min_conns: 4
+
+redis:
+  addr: redis:6379
+  password: ${TELESRV_REDIS_PASSWORD}
+  db: 0
+
+egress:
+  delivery_server:
+    addr: 0.0.0.0:2510
+    token: ${TELESRV_EGRESS_DELIVERY_TOKEN}
+  workers: 4
+  batch: 100
+  lease_timeout: 30s
+  outbound_push_timeout: 200ms
+  delivery_attempt_timeout: 2s
+  delivery_clock_skew_allowance: 1s

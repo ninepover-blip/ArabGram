@@ -1,0 +1,277 @@
+package rpc
+
+import (
+	"context"
+	"telesrv/internal/domain"
+)
+
+type captureUpdates struct {
+	state            domain.UpdateState
+	currentState     *domain.UpdateState
+	acknowledged     bool
+	authKeyID        [8]byte
+	userID           int64
+	clearedAuthKeyID [8]byte
+	cleared          bool
+	date             int
+	events           []domain.UpdateEvent
+	excludeAuthKeyID [8]byte
+	excludeSessionID int64
+	difference       *domain.UpdateDifference
+	observedRequest  domain.UpdateState
+	observedCalls    int
+	committedState   domain.UpdateState
+	commitMode       domain.UpdateStateCommitMode
+	commitCalls      int
+}
+
+func (s *captureUpdates) GetState(_ context.Context, authKeyID [8]byte, userID int64) (domain.UpdateState, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	return s.state, nil
+}
+
+func (s *captureUpdates) CurrentState(_ context.Context, userID int64) (domain.UpdateState, error) {
+	s.userID = userID
+	if s.currentState != nil {
+		return *s.currentState, nil
+	}
+	return s.state, nil
+}
+
+func (s *captureUpdates) ConfirmedState(_ context.Context, authKeyID [8]byte, userID int64) (domain.UpdateState, bool, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	return s.state, s.state.Pts != 0 || s.state.Date != 0, nil
+}
+
+func (s *captureUpdates) ObserveDifferenceRequest(_ context.Context, authKeyID [8]byte, userID int64, from domain.UpdateState) (domain.UpdateState, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	current := s.state
+	if s.currentState != nil {
+		current = *s.currentState
+	}
+	if from.Pts < 0 {
+		from.Pts = 0
+	}
+	if from.Pts > current.Pts {
+		from.Pts = current.Pts
+	}
+	s.observedRequest = from
+	s.observedCalls++
+	return from, nil
+}
+
+func (s *captureUpdates) GetDifference(_ context.Context, authKeyID [8]byte, userID int64, _ domain.UpdateState) (domain.UpdateDifference, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	if s.difference != nil {
+		return *s.difference, nil
+	}
+	return domain.UpdateDifference{State: s.state}, nil
+}
+
+func (s *captureUpdates) CommitDeliveredState(_ context.Context, authKeyID [8]byte, userID int64, state domain.UpdateState, mode domain.UpdateStateCommitMode) error {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	s.committedState = state
+	s.commitMode = mode
+	s.commitCalls++
+	s.state = state
+	s.acknowledged = true
+	return nil
+}
+
+func (s *captureUpdates) ClearAuthKey(_ context.Context, authKeyID [8]byte) error {
+	s.clearedAuthKeyID = authKeyID
+	s.cleared = true
+	return nil
+}
+
+func (s *captureUpdates) RecordNewMessage(_ context.Context, authKeyID [8]byte, userID int64, msg domain.Message) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	s.date = msg.Date
+	event := domain.UpdateEvent{Type: domain.UpdateEventNewMessage, Pts: s.state.Pts, PtsCount: 1, Date: msg.Date, Message: msg}
+	s.events = append(s.events, event)
+	return event, s.state, nil
+}
+
+func (s *captureUpdates) PublishNewMessage(_ context.Context, userID int64, msg domain.Message) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.userID = userID
+	s.date = msg.Date
+	event := domain.UpdateEvent{Type: domain.UpdateEventNewMessage, Pts: s.state.Pts + 1, PtsCount: 1, Date: msg.Date, Message: msg}
+	s.events = append(s.events, event)
+	st := s.state
+	st.Pts = event.Pts
+	if st.Date == 0 {
+		st.Date = msg.Date
+	}
+	return event, st, nil
+}
+
+func (s *captureUpdates) captureExclude(excludeAuthKeyID [8]byte, excludeSessionID int64) {
+	s.excludeAuthKeyID = excludeAuthKeyID
+	s.excludeSessionID = excludeSessionID
+}
+
+func (s *captureUpdates) RecordStory(_ context.Context, authKeyID [8]byte, userID int64, story domain.Story, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{
+		Type:  domain.UpdateEventStory,
+		Peer:  story.Owner,
+		Story: story,
+		MaxID: story.ID,
+	})
+}
+
+func (s *captureUpdates) RecordStoryFanout(_ context.Context, userID int64, story domain.Story) (domain.UpdateEvent, domain.UpdateState, error) {
+	return s.recordCapturedEvent([8]byte{}, userID, domain.UpdateEvent{
+		Type:  domain.UpdateEventStory,
+		Peer:  story.Owner,
+		Story: story,
+		MaxID: story.ID,
+	})
+}
+
+func (s *captureUpdates) RecordReadHistory(_ context.Context, authKeyID [8]byte, userID int64, read domain.ReadHistoryResult, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	event := domain.UpdateEvent{
+		Type:             domain.UpdateEventReadHistoryInbox,
+		Pts:              s.state.Pts,
+		PtsCount:         1,
+		Date:             s.state.Date,
+		Peer:             read.Peer,
+		MaxID:            read.MaxID,
+		StillUnreadCount: read.StillUnreadCount,
+		ChannelPts:       read.ChannelPts,
+	}
+	s.events = append(s.events, event)
+	return event, s.state, nil
+}
+
+func (s *captureUpdates) RecordReadStories(_ context.Context, authKeyID [8]byte, userID int64, read domain.StoryReadResult, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{
+		Type:  domain.UpdateEventReadStories,
+		Peer:  read.Peer,
+		MaxID: read.MaxReadID,
+	})
+}
+
+func (s *captureUpdates) RecordSentStoryReaction(_ context.Context, authKeyID [8]byte, userID int64, reaction domain.StoryReactionResult, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{
+		Type:     domain.UpdateEventSentStoryReaction,
+		Peer:     reaction.Peer,
+		MaxID:    reaction.StoryID,
+		Story:    reaction.Story,
+		Reaction: reaction.Reaction,
+	})
+}
+
+func (s *captureUpdates) RecordNewStoryReaction(_ context.Context, authKeyID [8]byte, ownerUserID int64, reaction domain.StoryReactionResult, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, ownerUserID, domain.UpdateEvent{
+		Type:     domain.UpdateEventNewStoryReaction,
+		Peer:     domain.Peer{Type: domain.PeerTypeUser, ID: reaction.ViewerID},
+		MaxID:    reaction.StoryID,
+		Story:    reaction.Story,
+		Reaction: reaction.Reaction,
+	})
+}
+
+func (s *captureUpdates) RecordContactsReset(_ context.Context, authKeyID [8]byte, userID int64, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventContactsReset})
+}
+
+func (s *captureUpdates) RecordDraftMessage(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, topMsgID int, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDraftMessage, Peer: peer, MaxID: topMsgID})
+}
+
+func (s *captureUpdates) RecordDialogPinned(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, pinned bool, folderID int, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDialogPinned, Peer: peer, Bool: pinned, FolderID: folderID})
+}
+
+func (s *captureUpdates) RecordPinnedDialogs(_ context.Context, authKeyID [8]byte, userID int64, folderID int, order []domain.Peer, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventPinnedDialogs, Peers: append([]domain.Peer(nil), order...), FolderID: folderID})
+}
+
+func (s *captureUpdates) RecordSavedDialogPinned(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, pinned bool, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventSavedDialogPinned, Peer: peer, Bool: pinned})
+}
+
+func (s *captureUpdates) RecordPinnedSavedDialogs(_ context.Context, authKeyID [8]byte, userID int64, order []domain.Peer, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventPinnedSavedDialogs, Peers: append([]domain.Peer(nil), order...)})
+}
+
+func (s *captureUpdates) RecordDialogUnreadMark(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, unread bool, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDialogUnreadMark, Peer: peer, Bool: unread})
+}
+
+func (s *captureUpdates) RecordPeerSettings(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, settings domain.PeerSettings, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventPeerSettings, Peer: peer, Settings: settings})
+}
+
+func (s *captureUpdates) RecordPeerStoryBlocked(_ context.Context, authKeyID [8]byte, userID int64, peer domain.Peer, blocked bool, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventPeerStoryBlocked, Peer: peer, Bool: blocked})
+}
+
+func (s *captureUpdates) RecordDialogFilter(_ context.Context, authKeyID [8]byte, userID int64, folderID int, folder *domain.DialogFolder, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDialogFilter, FilterID: folderID, DialogFilter: folder})
+}
+
+func (s *captureUpdates) RecordDialogFilterOrder(_ context.Context, authKeyID [8]byte, userID int64, order []int, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDialogFilterOrder, FilterOrder: append([]int(nil), order...)})
+}
+
+func (s *captureUpdates) RecordDialogFiltersReload(_ context.Context, authKeyID [8]byte, userID int64, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventDialogFilters})
+}
+
+func (s *captureUpdates) RecordFolderPeers(_ context.Context, authKeyID [8]byte, userID int64, peers []domain.FolderPeerUpdate, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{Type: domain.UpdateEventFolderPeers, FolderPeers: append([]domain.FolderPeerUpdate(nil), peers...)})
+}
+
+func (s *captureUpdates) RecordChannelDiscussionInbox(_ context.Context, authKeyID [8]byte, userID, channelID int64, topicID, maxID int, excludeAuthKeyID [8]byte, excludeSessionID int64) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.captureExclude(excludeAuthKeyID, excludeSessionID)
+	return s.recordCapturedEvent(authKeyID, userID, domain.UpdateEvent{
+		Type:     domain.UpdateEventReadChannelDiscussionInbox,
+		Peer:     domain.Peer{Type: domain.PeerTypeChannel, ID: channelID},
+		TopMsgID: topicID,
+		MaxID:    maxID,
+	})
+}
+
+func (s *captureUpdates) recordCapturedEvent(authKeyID [8]byte, userID int64, event domain.UpdateEvent) (domain.UpdateEvent, domain.UpdateState, error) {
+	s.authKeyID = authKeyID
+	s.userID = userID
+	if event.Pts == 0 {
+		event.Pts = s.state.Pts
+	}
+	if event.PtsCount == 0 {
+		event.PtsCount = 1
+	}
+	if event.Date == 0 {
+		event.Date = s.state.Date
+	}
+	event.UserID = userID
+	s.events = append(s.events, event)
+	return event, s.state, nil
+}

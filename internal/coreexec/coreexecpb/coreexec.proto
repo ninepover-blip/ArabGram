@@ -1,0 +1,283 @@
+syntax = "proto3";
+
+package telesrv.coreexec.v1;
+
+option go_package = "telesrv/internal/coreexec/coreexecpb;coreexecpb";
+
+service CoreExecService {
+  rpc GetInfo(CoreExecInfoRequest) returns (CoreExecInfoResponse);
+
+  rpc DispatchAdmitted(DispatchRequest) returns (DispatchResponse);
+  rpc PrepareAdmittedReplay(DispatchRequest) returns (PrepareReplayResponse);
+  rpc CommitAdmittedReplay(CommitReplayRequest) returns (CommitReplayResponse);
+  rpc CommitPostResponseActions(CommitPostResponseActionsRequest) returns (CommitPostResponseActionsResponse);
+  rpc ReportSessionOffline(SessionOfflineBatchRequest) returns (ErrorResponse);
+
+  rpc ResolveNegotiatedSessionLayer(AuthKeyRequest) returns (ResolveSessionLayerResponse);
+  rpc ResolveInheritedAuthKeyLayer(AuthKeyRequest) returns (ResolveInheritedLayerResponse);
+  rpc AdvanceNegotiatedSessionLayer(AuthKeyRequest) returns (AdvanceSessionLayerResponse);
+  rpc DeleteNegotiatedSessionLayer(AuthKeyRequest) returns (DeleteSessionLayerResponse);
+  rpc PublishLayerEvidence(PublishLayerEvidenceRequest) returns (ErrorResponse);
+  rpc ObserveInitConnection(ObserveInitConnectionRequest) returns (ErrorResponse);
+
+  rpc SaveAuthKey(AuthKeyRecord) returns (ErrorResponse);
+  rpc GetAuthKey(AuthKeyRequest) returns (GetAuthKeyResponse);
+  rpc UpdateAuthKeyClientInfo(AuthKeyClientInfoRequest) returns (ErrorResponse);
+  rpc DeleteAuthKey(AuthKeyRequest) returns (ErrorResponse);
+}
+
+message CoreExecInfoRequest {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+}
+
+message CoreExecInfoResponse {
+  uint32 protocol_version = 1;
+  uint32 min_supported_protocol_version = 2;
+  repeated string capabilities = 3;
+  string implementation = 4;
+  string error = 5;
+  string instance_id = 6;
+}
+
+enum AdmissionMode {
+  ADMISSION_MODE_UNSPECIFIED = 0;
+  ADMISSION_MODE_LAYER = 1;
+  ADMISSION_MODE_DEFAULT = 2;
+  ADMISSION_MODE_UNPROFILED = 3;
+}
+
+message Limits {
+  int64 max_wire_bytes = 1;
+  int64 max_vector_elements = 2;
+  int64 max_aggregate_elements = 3;
+  int64 max_depth = 4;
+}
+
+message ProfileMark {
+  int32 profile = 1;
+  bool present = 2;
+}
+
+message WireProof {
+  int32 profile = 1;
+  uint64 method = 2;
+  uint32 wire_id = 3;
+  int64 wire_size = 4;
+  string wire_digest = 5;
+  bool wire_invariant = 6;
+  ProfileMark effective_profile = 7;
+  ProfileMark profile_evidence = 8;
+}
+
+message RPCError {
+  int32 code = 1;
+  string message = 2;
+}
+
+message IdentityHint {
+  bytes business_auth_key_id = 1;
+  bool business_auth_key_resolved = 2;
+  int64 user_id = 3;
+  bool user_id_resolved = 4;
+  int32 raw_auth_key_expires_at = 5;
+  bool raw_auth_key_expires_at_resolved = 6;
+  bool session_updates_ready = 7;
+}
+
+message DispatchRequest {
+  AdmissionMode mode = 1;
+  int32 profile = 2;
+  Limits limits = 3;
+  bytes request_wire = 4;
+  WireProof proof = 5;
+  bytes auth_key_id = 6;
+  int64 session_id = 7;
+  int64 msg_id = 8;
+  uint64 admission_seq = 9;
+  bool profile_evidence_fresh = 10;
+  IdentityHint identity_hint = 11;
+}
+
+message DispatchResponse {
+  string method = 1;
+  bytes result_wire = 2;
+  bool wire_invariant = 3;
+  RPCError rpc_error = 4;
+  string error = 5;
+  repeated PostResponseAction post_response_actions = 6;
+}
+
+message PostResponseAction {
+  oneof action {
+    UpdatesDeliveryAction updates_delivery = 1;
+    AccountAuthorizationTeardownAction account_authorization_teardown = 2;
+  }
+}
+
+message AccountAuthorizationTeardownAction {
+  int64 user_id = 1;
+  bytes auth_key_id = 2;
+}
+
+message UpdateState {
+  int32 pts = 1;
+  int32 qts = 2;
+  int32 date = 3;
+  int32 seq = 4;
+}
+
+enum UpdateStateCommitMode {
+  UPDATE_STATE_COMMIT_MODE_UNSPECIFIED = 0;
+  UPDATE_STATE_COMMIT_DELIVERED_ONLY = 1;
+  UPDATE_STATE_COMMIT_DELIVERED_AND_OBSERVED_BASELINE = 2;
+}
+
+message UpdatesDeliveryAction {
+  bool commit_cursor = 1;
+  bytes cursor_auth_key_id = 2;
+  int64 cursor_user_id = 3;
+  UpdateState cursor_state = 4;
+  UpdateStateCommitMode cursor_mode = 5;
+
+  bool mark_secret_delivered = 6;
+  int64 secret_device_key = 7;
+  repeated int64 secret_event_ids = 8;
+
+  bool mark_session_ready = 9;
+  bytes ready_raw_auth_key_id = 10;
+  int64 ready_session_id = 11;
+  int64 ready_user_id = 12;
+
+  bool publish_bootstrap = 13;
+  int64 bootstrap_user_id = 14;
+  uint64 activation_token = 15;
+  bytes bootstrap_auth_key_id = 16;
+  int64 bootstrap_session_id = 17;
+  uint64 bootstrap_probe_token = 18;
+  bytes bootstrap_raw_auth_key_id = 19;
+}
+
+message PrepareReplayResponse {
+  string token = 1;
+  string error = 2;
+}
+
+message CommitReplayRequest {
+  string token = 1;
+}
+
+message CommitReplayResponse {
+  string error = 1;
+}
+
+message CommitPostResponseActionsRequest {
+  repeated PostResponseAction actions = 1;
+}
+
+message CommitPostResponseActionsResponse {
+  string error = 1;
+}
+
+message SessionOfflineEvent {
+  bytes raw_auth_key_id = 1;
+  int64 session_id = 2;
+  int64 user_id = 3;
+  bool last_for_user = 4;
+  int32 disconnected_at = 5;
+}
+
+message SessionOfflineBatchRequest {
+  repeated SessionOfflineEvent events = 1;
+}
+
+message AuthKeyRequest {
+  bytes raw_auth_key_id = 1;
+  int64 session_id = 2;
+  int32 layer = 3;
+  int64 msg_id = 4;
+  string source_id = 5;
+}
+
+message AuthKeyRecord {
+  bytes auth_key_id = 1;
+  bytes value = 2;
+  int64 server_salt = 3;
+  int64 created_at = 4;
+  int32 expires_at = 5;
+  int32 layer = 6;
+  int64 layer_observation_id = 7;
+  string device_model = 8;
+  string platform = 9;
+  string system_version = 10;
+  int32 api_id = 11;
+  string app_version = 12;
+}
+
+message GetAuthKeyResponse {
+  AuthKeyRecord auth_key = 1;
+  bool found = 2;
+  string error = 3;
+}
+
+message AuthKeyClientInfoRequest {
+  bytes auth_key_id = 1;
+  int32 layer = 2;
+  string device_model = 3;
+  string platform = 4;
+  string system_version = 5;
+  int32 api_id = 6;
+  string app_version = 7;
+}
+
+message PublishLayerEvidenceRequest {
+  bytes raw_auth_key_id = 1;
+  int64 session_id = 2;
+  int64 msg_id = 3;
+  uint64 admission_seq = 4;
+  uint64 safe_floor = 5;
+  int32 layer = 6;
+}
+
+message ResolveSessionLayerResponse {
+  int32 layer = 1;
+  int64 msg_id = 2;
+  bool found = 3;
+  string error = 4;
+}
+
+message ResolveInheritedLayerResponse {
+  int32 layer = 1;
+  bool found = 2;
+  string error = 3;
+}
+
+message AdvanceSessionLayerResponse {
+  int32 current_layer = 1;
+  int64 current_msg_id = 2;
+  bool publish_shared = 3;
+  string error = 4;
+}
+
+message DeleteSessionLayerResponse {
+  bool deleted = 1;
+  string error = 2;
+}
+
+message ObserveInitConnectionRequest {
+  bytes auth_key_id = 1;
+  int64 session_id = 2;
+  int32 layer = 3;
+  int32 api_id = 4;
+  string device_model = 5;
+  string system_version = 6;
+  string app_version = 7;
+  string system_lang_code = 8;
+  string lang_pack = 9;
+  string lang_code = 10;
+}
+
+message ErrorResponse {
+  string error = 1;
+}

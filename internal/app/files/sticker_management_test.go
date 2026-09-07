@@ -1,0 +1,292 @@
+package files
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"telesrv/internal/domain"
+)
+
+func TestManageStickerSetMutationsKeepSetAndDocumentsConsistent(t *testing.T) {
+	ctx := context.Background()
+	media := &fakeMediaStore{
+		docs: map[int64]domain.Document{
+			101: {ID: 101, AccessHash: 1001, DCID: 2, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+			102: {ID: 102, AccessHash: 1002, DCID: 2, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+		},
+		sets: map[int64]domain.StickerSet{},
+	}
+	svc := NewService(media, nil, 2)
+
+	set, docs, err := createStickerSetForTest(ctx, svc, domain.CreateStickerSetRequest{
+		CreatorUserID: 1000000001,
+		Title:         "Fresh Pack",
+		ShortName:     "fresh_pack",
+		Items: []domain.StickerSetItemInput{{
+			DocumentID:         101,
+			DocumentAccessHash: 1001,
+			Emoji:              "🙂",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create sticker set: %v", err)
+	}
+	originalHash := set.Hash
+	if len(docs) != 1 {
+		t.Fatalf("created docs = %d, want 1", len(docs))
+	}
+
+	set, docs, err = svc.AddStickerToSet(ctx, 1000000001, domain.StickerSetRef{Kind: domain.StickerSetRefByShortName, ShortName: "fresh_pack"}, domain.StickerSetItemInput{
+		DocumentID:         102,
+		DocumentAccessHash: 1002,
+		Emoji:              "😄",
+		Keywords:           "smile, fresh",
+	}, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("add sticker: %v", err)
+	}
+	if set.Count != 2 || len(set.DocumentIDs) != 2 || len(docs) != 2 || set.Hash == originalHash {
+		t.Fatalf("after add set=%+v docs=%d originalHash=%d, want two docs and bumped hash", set, len(docs), originalHash)
+	}
+	if id, hash, ok := docs[1].StickerSetRef(); !ok || id != set.ID || hash != set.AccessHash {
+		t.Fatalf("added doc sticker ref = %d/%d/%v, want %d/%d/true", id, hash, ok, set.ID, set.AccessHash)
+	}
+
+	set, docs, err = svc.ChangeStickerPosition(ctx, 1000000001, 102, 1002, 0, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("change sticker position: %v", err)
+	}
+	if got := set.DocumentIDs; len(got) != 2 || got[0] != 102 || got[1] != 101 {
+		t.Fatalf("document order after move = %v, want [102 101]", got)
+	}
+	if len(docs) != 2 || docs[0].ID != 102 || docs[1].ID != 101 {
+		t.Fatalf("returned docs after move = %+v, want 102 then 101", docs)
+	}
+
+	set, docs, err = svc.RenameStickerSet(ctx, 1000000001, domain.StickerSetRef{Kind: domain.StickerSetRefByID, ID: set.ID, AccessHash: set.AccessHash}, "Renamed Pack", testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("rename sticker set: %v", err)
+	}
+	if set.Title != "Renamed Pack" || len(docs) != 2 {
+		t.Fatalf("renamed set=%+v docs=%d, want renamed with docs intact", set, len(docs))
+	}
+
+	set, docs, err = svc.RemoveStickerFromSet(ctx, 1000000001, 102, 1002, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("remove sticker: %v", err)
+	}
+	if set.Count != 1 || len(set.DocumentIDs) != 1 || set.DocumentIDs[0] != 101 || len(docs) != 1 || docs[0].ID != 101 {
+		t.Fatalf("after remove set=%+v docs=%+v, want only doc 101", set, docs)
+	}
+	detached, ok := media.docs[102]
+	if !ok {
+		t.Fatalf("detached doc missing from fake store")
+	}
+	if id, _, ok := detached.StickerSetRef(); ok || id != 0 {
+		t.Fatalf("removed doc sticker ref = %d/%v, want detached", id, ok)
+	}
+
+	_, _, err = svc.RemoveStickerFromSet(ctx, 1000000001, 101, 1001, testStickerSetDeliveryEffects)
+	if !errors.Is(err, domain.ErrStickerSetEmpty) {
+		t.Fatalf("remove last sticker err = %v, want ErrStickerSetEmpty", err)
+	}
+
+	kind, err := svc.DeleteStickerSet(ctx, 1000000001, domain.StickerSetRef{Kind: domain.StickerSetRefByID, ID: set.ID, AccessHash: set.AccessHash}, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("delete sticker set: %v", err)
+	}
+	if kind != domain.StickerSetKindStickers {
+		t.Fatalf("delete kind = %q, want stickers", kind)
+	}
+	if _, _, found, err := svc.ResolveStickerSet(ctx, domain.StickerSetRef{Kind: domain.StickerSetRefByShortName, ShortName: "fresh_pack"}); err != nil || found {
+		t.Fatalf("resolve deleted set = found %v err %v, want miss", found, err)
+	}
+}
+
+func TestManageStickerSetRejectsNonCreator(t *testing.T) {
+	ctx := context.Background()
+	media := &fakeMediaStore{
+		docs: map[int64]domain.Document{
+			101: {ID: 101, AccessHash: 1001, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+			102: {ID: 102, AccessHash: 1002, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+		},
+		sets: map[int64]domain.StickerSet{},
+	}
+	svc := NewService(media, nil, 2)
+
+	set, _, err := createStickerSetForTest(ctx, svc, domain.CreateStickerSetRequest{
+		CreatorUserID: 1000000001,
+		Title:         "Fresh Pack",
+		ShortName:     "fresh_pack",
+		Items: []domain.StickerSetItemInput{{
+			DocumentID:         101,
+			DocumentAccessHash: 1001,
+			Emoji:              "🙂",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create sticker set: %v", err)
+	}
+	_, _, err = svc.AddStickerToSet(ctx, 1000000002, domain.StickerSetRef{Kind: domain.StickerSetRefByID, ID: set.ID, AccessHash: set.AccessHash}, domain.StickerSetItemInput{
+		DocumentID:         102,
+		DocumentAccessHash: 1002,
+		Emoji:              "😄",
+	}, testStickerSetDeliveryEffects)
+	if !errors.Is(err, domain.ErrStickerSetNotOwned) {
+		t.Fatalf("non-creator add err = %v, want ErrStickerSetNotOwned", err)
+	}
+}
+
+func TestValidateAdminStickerSetUploadPreconditions(t *testing.T) {
+	ctx := context.Background()
+	fullIDs := make([]int64, domain.MaxStickerSetItems)
+	for i := range fullIDs {
+		fullIDs[i] = int64(i + 1)
+	}
+	media := &fakeMediaStore{
+		docs: map[int64]domain.Document{},
+		sets: map[int64]domain.StickerSet{
+			10: {ID: 10, Kind: domain.StickerSetKindEmoji, DocumentIDs: fullIDs},
+			20: {ID: 20, Kind: domain.StickerSetKindSystem, DocumentIDs: []int64{1}},
+			30: {ID: 30, Kind: domain.StickerSetKindEmoji, DocumentIDs: []int64{1}},
+			40: {ID: 40, Kind: domain.StickerSetKindEmoji, Deleted: true, DocumentIDs: []int64{1}},
+		},
+	}
+	svc := NewService(media, nil, 2)
+
+	if err := svc.ValidateAdminAddStickerToSet(ctx, 10, "🙂"); !errors.Is(err, domain.ErrStickerSetTooMuch) {
+		t.Fatalf("full pack validation err = %v, want ErrStickerSetTooMuch", err)
+	}
+	for _, setID := range []int64{20, 40, 999} {
+		if err := svc.ValidateAdminAddStickerToSet(ctx, setID, "🙂"); !errors.Is(err, domain.ErrStickerSetInvalid) {
+			t.Fatalf("set %d validation err = %v, want ErrStickerSetInvalid", setID, err)
+		}
+	}
+	if err := svc.ValidateAdminAddStickerToSet(ctx, 30, ""); !errors.Is(err, domain.ErrStickerSetEmojiInvalid) {
+		t.Fatalf("empty emoji validation err = %v, want ErrStickerSetEmojiInvalid", err)
+	}
+	if err := svc.ValidateAdminAddStickerToSet(ctx, 30, "🙂"); err != nil {
+		t.Fatalf("editable pack validation: %v", err)
+	}
+
+	if err := svc.ValidateAdminCreateStickerSet(ctx, "New Emoji", "new_emoji", "🙂", domain.StickerSetKindEmoji); err != nil {
+		t.Fatalf("create validation: %v", err)
+	}
+	if err := svc.ValidateAdminCreateStickerSet(ctx, "New Emoji", "new_emoji", "🙂", domain.StickerSetKindSystem); !errors.Is(err, domain.ErrStickerSetTypeInvalid) {
+		t.Fatalf("system create validation err = %v, want ErrStickerSetTypeInvalid", err)
+	}
+	media.sets[50] = domain.StickerSet{ID: 50, ShortName: "occupied_name"}
+	if err := svc.ValidateAdminCreateStickerSet(ctx, "New Emoji", "occupied_name", "🙂", domain.StickerSetKindEmoji); !errors.Is(err, domain.ErrStickerSetShortNameOccupied) {
+		t.Fatalf("occupied name validation err = %v, want ErrStickerSetShortNameOccupied", err)
+	}
+}
+
+func TestAddStickerToSetAcceptsUploadedMaterial(t *testing.T) {
+	ctx := context.Background()
+	media := &fakeMediaStore{
+		docs: map[int64]domain.Document{
+			101: {ID: 101, AccessHash: 1001, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+			202: {ID: 202, AccessHash: 2002, MimeType: "video/mp4", Size: 4096, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrVideo, W: 512, H: 512, Duration: 1}}},
+		},
+		sets: map[int64]domain.StickerSet{},
+	}
+	svc := NewService(media, nil, 2)
+
+	set, _, err := createStickerSetForTest(ctx, svc, domain.CreateStickerSetRequest{
+		CreatorUserID: 1000000001,
+		Title:         "Fresh Pack",
+		ShortName:     "fresh_pack",
+		Items: []domain.StickerSetItemInput{{
+			DocumentID:         101,
+			DocumentAccessHash: 1001,
+			Emoji:              "🙂",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create sticker set: %v", err)
+	}
+	set, docs, err := svc.AddStickerToSet(ctx, 1000000001, domain.StickerSetRef{Kind: domain.StickerSetRefByID, ID: set.ID, AccessHash: set.AccessHash}, domain.StickerSetItemInput{
+		DocumentID:         202,
+		DocumentAccessHash: 2002,
+		Emoji:              "🎬",
+	}, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("add uploaded material: %v", err)
+	}
+	if set.Count != 2 || len(docs) != 2 {
+		t.Fatalf("after add set=%+v docs=%d, want two items", set, len(docs))
+	}
+	added := docs[1]
+	if added.ID != 202 || !added.IsSticker() || !documentHasAttr(added, domain.DocAttrVideo) {
+		t.Fatalf("added doc = %+v, want sticker-tagged video material", added)
+	}
+}
+
+func TestAddStickerToSetClonesDocumentWhenReusedAcrossSets(t *testing.T) {
+	ctx := context.Background()
+	media := &fakeMediaStore{
+		docs: map[int64]domain.Document{
+			401: {ID: 401, AccessHash: 4001, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+			402: {ID: 402, AccessHash: 4002, Attributes: []domain.DocumentAttribute{{Kind: domain.DocAttrSticker}}},
+		},
+		sets: map[int64]domain.StickerSet{},
+	}
+	svc := NewService(media, nil, 2)
+
+	emojiSet, _, err := createStickerSetForTest(ctx, svc, domain.CreateStickerSetRequest{
+		CreatorUserID: 1000000001,
+		Title:         "Emoji Pack",
+		ShortName:     "emoji_pack",
+		Kind:          domain.StickerSetKindEmoji,
+		Items: []domain.StickerSetItemInput{{
+			DocumentID:         401,
+			DocumentAccessHash: 4001,
+			Emoji:              "🙂",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create emoji set: %v", err)
+	}
+	stickerSet, _, err := createStickerSetForTest(ctx, svc, domain.CreateStickerSetRequest{
+		CreatorUserID: 1000000001,
+		Title:         "Sticker Pack",
+		ShortName:     "sticker_pack",
+		Items: []domain.StickerSetItemInput{{
+			DocumentID:         402,
+			DocumentAccessHash: 4002,
+			Emoji:              "😄",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create sticker set: %v", err)
+	}
+	stickerSet, docs, err := svc.AddStickerToSet(ctx, 1000000001, domain.StickerSetRef{Kind: domain.StickerSetRefByID, ID: stickerSet.ID, AccessHash: stickerSet.AccessHash}, domain.StickerSetItemInput{
+		DocumentID:         401,
+		DocumentAccessHash: 4001,
+		Emoji:              "👋",
+	}, testStickerSetDeliveryEffects)
+	if err != nil {
+		t.Fatalf("add existing emoji doc to sticker set: %v", err)
+	}
+	if stickerSet.Count != 2 || len(docs) != 2 {
+		t.Fatalf("after add set=%+v docs=%d, want two docs", stickerSet, len(docs))
+	}
+	added := docs[1]
+	if added.ID == 401 || stickerSet.DocumentIDs[1] == 401 {
+		t.Fatalf("added doc reused source id, set=%+v docs=%+v", stickerSet, docs)
+	}
+	source := media.docs[401]
+	if !source.IsCustomEmoji() {
+		t.Fatalf("source doc attrs = %+v, want custom emoji preserved", source.Attributes)
+	}
+	if id, _, ok := source.StickerSetRef(); !ok || id != emojiSet.ID {
+		t.Fatalf("source doc set ref = %d/%v, want emoji set %d", id, ok, emojiSet.ID)
+	}
+	if !added.IsSticker() || added.IsCustomEmoji() {
+		t.Fatalf("added clone attrs = %+v, want regular sticker", added.Attributes)
+	}
+	if id, _, ok := added.StickerSetRef(); !ok || id != stickerSet.ID {
+		t.Fatalf("added clone set ref = %d/%v, want sticker set %d", id, ok, stickerSet.ID)
+	}
+}

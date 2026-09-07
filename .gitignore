@@ -1,0 +1,35 @@
+# Go build artifacts
+/bin/
+*.exe
+*.test
+*.out
+coverage.*
+node_modules/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 本地环境 / 正式密钥（仅 deploy/docker/assets 下明确发布的测试私钥例外）
+.env
+.env.*
+!.env.example
+/configs/*.yaml
+*.local
+*.pem
+*.key
+/secrets/
+/data/*
+!/data/langpack/
+!/data/langpack/**
+logs/
+tmp/
+.gocache/
+.tdesktop-e2e/
+/deploy/docker/backups/
+/deploy/docker/overrides/
+
+# IDE
+.idea/
+.vscode/

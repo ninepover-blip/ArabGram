@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "image_role": "core",
+  "release_channel": "v2-test",
+  "included": [
+    {
+      "name": "catalogs",
+      "source": "internal/seed/catalog",
+      "delivery": "compiled into telesrv-core with go:embed"
+    },
+    {
+      "name": "appearance",
+      "source": "internal/seed/appearance",
+      "delivery": "compiled into telesrv-core with go:embed"
+    },
+    {
+      "name": "language-packs",
+      "source": "data/langpack",
+      "image_path": "/usr/share/telesrv/langpack",
+      "version_marker": "/usr/share/telesrv/langpack/.seed-fingerprint",
+      "startup_policy": "reconcile only on first import or fingerprint change"
+    }
+  ],
+  "not_included": [
+    "runtime sticker/reaction exports",
+    "official gift snapshots",
+    "premium promo media"
+  ],
+  "test_identity": [
+    {
+      "name": "MTProto RSA test key pair",
+      "image_role": "edge-test",
+      "image_path": "/usr/share/telesrv/keys",
+      "warning": "public test identity; never treat this private key as secret"
+    }
+  ]
+}

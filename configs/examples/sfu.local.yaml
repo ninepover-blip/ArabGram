@@ -1,0 +1,35 @@
+version: 1
+
+instance:
+  id: sfu-local-a
+
+debug:
+  addr: 127.0.0.1:6064
+
+public:
+  advertise:
+    ip: 127.0.0.1
+
+redis:
+  addr: 127.0.0.1:6399
+  db: 0
+
+sfu:
+  udp_port: 12399
+  bind_ip: 127.0.0.1
+  advertise_ip: 127.0.0.1
+  instance_ttl: 90s
+  instance_heartbeat_interval: 30s
+  max_active_calls: 0
+  control:
+    addr: 127.0.0.1:2450
+    url: grpc://127.0.0.1:2450
+    token: ${TELESRV_SFU_CONTROL_TOKEN}
+
+turn:
+  enabled: false
+  bind_ip: 127.0.0.1
+
+group_call:
+  control_url: http://127.0.0.1:2420
+  control_token: ${TELESRV_GROUPCALL_CONTROL_TOKEN}
