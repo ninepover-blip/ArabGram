@@ -39,7 +39,7 @@ export function BootScreen() {
       <div className="brand compact brand-elevated">
         <span className="brand-mark">T</span>
         <span>
-          <strong>telesrv</strong>
+          <strong>ArabGram</strong>
           <small>{t("app.adminConsole")}</small>
         </span>
       </div>
@@ -89,7 +89,7 @@ export function Shell({
         <AppLink className="brand" href="/" navigate={navigate}>
           <span className="brand-mark">T</span>
           <span>
-            <strong>telesrv</strong>
+            <strong>ArabGram</strong>
             <small>{t("app.adminConsole")}</small>
           </span>
         </AppLink>
