@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -18,11 +19,12 @@ type AdminYAML struct {
 }
 
 type AdminUIYAML struct {
-	Addr        string   `yaml:"addr"`
-	Password    string   `yaml:"password"`
-	Token       string   `yaml:"token"`
-	SessionKey  string   `yaml:"session_key"`
-	Permissions []string `yaml:"permissions"`
+	Addr           string   `yaml:"addr"`
+	Password       string   `yaml:"password"`
+	Token          string   `yaml:"token"`
+	SessionKey     string   `yaml:"session_key"`
+	Permissions    []string `yaml:"permissions"`
+	AllowedOrigins []string `yaml:"allowed_origins"`
 }
 
 type AdminAPIYAML struct {
@@ -37,15 +39,16 @@ type AdminStorageYAML struct {
 }
 
 type AdminConfig struct {
-	Addr          string
-	PostgresDSN   string
-	AdminAPIAddr  string
-	AdminAPIToken string
-	Password      string
-	Token         string
-	SessionKey    string
-	DiskStatsPath string
-	Permissions   []string
+	Addr           string
+	PostgresDSN    string
+	AdminAPIAddr   string
+	AdminAPIToken  string
+	Password       string
+	Token          string
+	SessionKey     string
+	DiskStatsPath  string
+	Permissions    []string
+	AllowedOrigins []string
 }
 
 func LoadAdmin() (AdminConfig, error) {
@@ -74,6 +77,11 @@ func adminConfigFromYAML(y AdminConfigYAML) (AdminConfig, error) {
 		}
 	}
 
+	allowedOrigins := trimStringList(y.Admin.UI.AllowedOrigins)
+	if envOrigins := trimStringList(strings.Split(os.Getenv("TELESRV_ADMIN_ALLOWED_ORIGINS"), ",")); len(envOrigins) > 0 {
+		allowedOrigins = envOrigins
+	}
+
 	backend := strings.ToLower(strings.TrimSpace(y.Storage.BlobBackendKind))
 	if backend == "" {
 		backend = "localfs"
@@ -96,15 +104,16 @@ func adminConfigFromYAML(y AdminConfigYAML) (AdminConfig, error) {
 	}
 
 	cfg := AdminConfig{
-		Addr:          stringDefault(y.Admin.UI.Addr, "127.0.0.1:2600"),
-		PostgresDSN:   strings.TrimSpace(y.Postgres.DSN),
-		AdminAPIAddr:  stringDefault(y.Admin.API.Addr, "127.0.0.1:2599"),
-		AdminAPIToken: strings.TrimSpace(y.Admin.API.Token),
-		Password:      strings.TrimSpace(y.Admin.UI.Password),
-		Token:         strings.TrimSpace(y.Admin.UI.Token),
-		SessionKey:    strings.TrimSpace(y.Admin.UI.SessionKey),
-		DiskStatsPath: diskStatsPath,
-		Permissions:   permissions,
+		Addr:           stringDefault(y.Admin.UI.Addr, "127.0.0.1:2600"),
+		PostgresDSN:    strings.TrimSpace(y.Postgres.DSN),
+		AdminAPIAddr:   stringDefault(y.Admin.API.Addr, "127.0.0.1:2599"),
+		AdminAPIToken:  strings.TrimSpace(y.Admin.API.Token),
+		Password:       strings.TrimSpace(y.Admin.UI.Password),
+		Token:          strings.TrimSpace(y.Admin.UI.Token),
+		SessionKey:     strings.TrimSpace(y.Admin.UI.SessionKey),
+		DiskStatsPath:  diskStatsPath,
+		Permissions:    permissions,
+		AllowedOrigins: allowedOrigins,
 	}
 	if cfg.PostgresDSN == "" {
 		return AdminConfig{}, fmt.Errorf("postgres.dsn is required by cmd/telesrv-admin")

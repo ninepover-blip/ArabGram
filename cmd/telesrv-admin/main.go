@@ -54,7 +54,7 @@ func run() error {
 	}
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           srv.routes(),
+		Handler:           corsMiddleware(cfg.AllowedOrigins, srv.routes()),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
@@ -71,19 +71,16 @@ func run() error {
 }
 
 type uiConfig struct {
-	Addr          string
-	PostgresDSN   string
-	AdminAPIURL   string
-	AdminAPIToken string
-	Password      string
-	Token         string
-	SessionKey    []byte
-	// DiskStatsPath points the dashboard host-disk sampler at the local path
-	// that matters for the selected blob backend: permanent localfs storage or
-	// the S3 upload spool.
-	DiskStatsPath string
-	// Permissions is the right set a panel session is issued with.
-	Permissions []string
+	Addr           string
+	PostgresDSN    string
+	AdminAPIURL    string
+	AdminAPIToken  string
+	Password       string
+	Token          string
+	SessionKey     []byte
+	DiskStatsPath  string
+	Permissions    []string
+	AllowedOrigins []string
 }
 
 // loadConfig reads the standalone admin YAML and converts it to uiConfig.
@@ -96,15 +93,16 @@ func loadConfig() (uiConfig, error) {
 	sum := sha256.Sum256([]byte(appCfg.SessionKey))
 
 	return uiConfig{
-		Addr:          appCfg.Addr,
-		PostgresDSN:   appCfg.PostgresDSN,
-		AdminAPIURL:   adminAPIURL(appCfg.AdminAPIAddr),
-		AdminAPIToken: appCfg.AdminAPIToken,
-		Password:      appCfg.Password,
-		Token:         appCfg.Token,
-		SessionKey:    sum[:],
-		DiskStatsPath: appCfg.DiskStatsPath,
-		Permissions:   appCfg.Permissions,
+		Addr:           appCfg.Addr,
+		PostgresDSN:    appCfg.PostgresDSN,
+		AdminAPIURL:    adminAPIURL(appCfg.AdminAPIAddr),
+		AdminAPIToken:  appCfg.AdminAPIToken,
+		Password:       appCfg.Password,
+		Token:          appCfg.Token,
+		SessionKey:     sum[:],
+		DiskStatsPath:  appCfg.DiskStatsPath,
+		Permissions:    appCfg.Permissions,
+		AllowedOrigins: appCfg.AllowedOrigins,
 	}, nil
 }
 

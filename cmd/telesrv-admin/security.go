@@ -66,7 +66,7 @@ func (s *server) requireAuthAPI(next http.Handler) http.Handler {
 			writeAPIError(w, http.StatusUnauthorized, "not authenticated")
 			return
 		}
-		if !checkMutationSafety(w, r, claims) {
+		if !checkMutationSafety(w, r, claims, s.cfg.AllowedOrigins) {
 			return
 		}
 		ctx := context.WithValue(r.Context(), actorKey{}, claims.Actor)
@@ -94,11 +94,11 @@ func (s *server) requirePermission(permission string, next http.Handler) http.Ha
 }
 
 // checkMutationSafety enforces the CSRF contract on a mutating request.
-func checkMutationSafety(w http.ResponseWriter, r *http.Request, claims sessionClaims) bool {
+func checkMutationSafety(w http.ResponseWriter, r *http.Request, claims sessionClaims, allowedOrigins []string) bool {
 	if !mutatingMethod(r.Method) {
 		return true
 	}
-	if !sameOriginRequest(r) {
+	if !sameOriginRequest(r, allowedOrigins) {
 		writeAPIError(w, http.StatusForbidden, "origin is not allowed")
 		return false
 	}
@@ -146,9 +146,9 @@ func mutatingMethod(method string) bool {
 // Origin must be this host -- including the literal "null" a sandboxed or
 // privacy-stripped context sends, which is by definition not this host.
 //
-// This compares against r.Host, so a reverse proxy in front of the panel has to
-// preserve it (nginx: proxy_set_header Host $host).
-func sameOriginRequest(r *http.Request) bool {
+// When allowedOrigins is configured, cross-origin requests from those origins
+// are also accepted (for the admin panel served from a separate domain).
+func sameOriginRequest(r *http.Request, allowedOrigins []string) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
 		return true
@@ -157,7 +157,15 @@ func sameOriginRequest(r *http.Request) bool {
 	if err != nil || parsed.Host == "" {
 		return false
 	}
-	return strings.EqualFold(parsed.Host, r.Host)
+	if strings.EqualFold(parsed.Host, r.Host) {
+		return true
+	}
+	for _, allowed := range allowedOrigins {
+		if strings.EqualFold(parsed.Host, allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 // panelPermissions is a resolved session permission set.
@@ -209,4 +217,33 @@ func permissionsFromContext(ctx context.Context) panelPermissions {
 		return permissions
 	}
 	return panelPermissions{}
+}
+
+// corsMiddleware adds CORS headers for configured allowed origins and handles
+// preflight OPTIONS requests. This enables the admin panel to be served from
+// a different domain (e.g. Vercel) while the API runs on the Go backend.
+func corsMiddleware(allowedOrigins []string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if origin != "" {
+			parsed, err := url.Parse(origin)
+			if err == nil && parsed.Host != "" {
+				for _, allowed := range allowedOrigins {
+					if strings.EqualFold(parsed.Host, allowed) {
+						w.Header().Set("Access-Control-Allow-Origin", origin)
+						w.Header().Set("Access-Control-Allow-Credentials", "true")
+						w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+						w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, Authorization")
+						w.Header().Set("Access-Control-Max-Age", "86400")
+						break
+					}
+				}
+			}
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -219,19 +219,19 @@ func TestForeignOriginIsRefusedEvenWithAValidToken(t *testing.T) {
 	}
 
 	// The panel's own origin is accepted.
-	if !sameOriginRequest(originRequest("https://panel.example", "panel.example")) {
+	if !sameOriginRequest(originRequest("https://panel.example", "panel.example"), nil) {
 		t.Fatal("same origin refused")
 	}
 	// A missing Origin is accepted: browsers omit it and non-browser callers never
 	// send it, and the token check still applies.
-	if !sameOriginRequest(originRequest("", "panel.example")) {
+	if !sameOriginRequest(originRequest("", "panel.example"), nil) {
 		t.Fatal("absent origin refused")
 	}
 	// An opaque origin is not this host.
-	if sameOriginRequest(originRequest("null", "panel.example")) {
+	if sameOriginRequest(originRequest("null", "panel.example"), nil) {
 		t.Fatal("opaque origin accepted")
 	}
-	if sameOriginRequest(originRequest("not a url", "panel.example")) {
+	if sameOriginRequest(originRequest("not a url", "panel.example"), nil) {
 		t.Fatal("unparsable origin accepted")
 	}
 }

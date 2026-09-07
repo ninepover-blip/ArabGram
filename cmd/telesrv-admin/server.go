@@ -263,7 +263,7 @@ func (s *server) handleAPILogin(w http.ResponseWriter, r *http.Request) {
 	// Login is the one mutating route without a CSRF token, because no session
 	// exists yet to bind one to. The Origin check still applies, and the request
 	// carries the operator credential, which a forging page does not have.
-	if !sameOriginRequest(r) {
+	if !sameOriginRequest(r, s.cfg.AllowedOrigins) {
 		writeAPIError(w, http.StatusForbidden, "origin is not allowed")
 		return
 	}
